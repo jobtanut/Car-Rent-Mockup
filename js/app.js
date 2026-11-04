@@ -83,8 +83,16 @@ const App = {
     this.bindTools(root);
     $('[data-logout]', root).onclick = () => this.logout();
     $$('[data-nav]', root).forEach(b => b.onclick = () => { if (this.user.role === 'customer' && b.dataset.nav === 'rent' && CustomerViews.wiz && CustomerViews.wiz.step === 4) CustomerViews.resetWiz(); this.go(b.dataset.nav); });
+    this.syncTopbar();
     try { role.views[this.view]($('#main', root)); }
     catch (err) { console.error(err); $('#main', root).innerHTML = `<div class="alert alert-danger">${esc(err.message)}</div>`; }
+  },
+
+  /* keep the sticky menu exactly under the (sometimes wrapping) top bar */
+  syncTopbar() {
+    const tb = $('.topbar'); if (!tb) return;
+    document.documentElement.style.setProperty('--tb', tb.getBoundingClientRect().height + 'px');
+    if (!this._tbWatch) { this._tbWatch = true; window.addEventListener('resize', () => this.syncTopbar()); }
   },
 
   renderLogin(root) {
