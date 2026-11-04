@@ -1,0 +1,68 @@
+/* Functional requirements (Lab 5 doc, 2026) → screen / DFD process / use case traceability */
+const FRS = [
+  // id, actor, TH (verbatim), EN, screen [th,en], dfd, use case, gap note [th,en] | null
+  ['C-01', 'customer', 'ระบบจะต้องอนุญาตให้ผู้เช่ารถสร้างบัญชีผู้ใช้', 'Renter can create a user account', ['หน้าเข้าสู่ระบบ › สมัครสมาชิก', 'Login › Register'], '1.1', 'สร้างบัญชีผู้ใช้', null],
+  ['C-02', 'customer', 'ระบบจะต้องอนุญาตให้ผู้เช่ารถเข้าสู่ระบบ', 'Renter can sign in', ['หน้าเข้าสู่ระบบ', 'Login'], '1.1', 'เข้าสู่ระบบ', null],
+  ['C-03', 'customer', 'ระบบจะต้องอนุญาตให้ผู้เช่ารถระบุวัน เวลา สถานที่ที่ต้องการเช่ารถกับระบบ', 'Renter enters the date, time and location', ['เช่ารถ › ขั้นที่ 1', 'Rent a car › Step 1'], '1.2', 'เลือกวันเวลา', ['DFD 1.2 รับแค่ "วันเวลา, ประเภทรถ" ไม่มีสถานที่/สาขา (สาขาไปโผล่ที่ 1.3)', 'DFD 1.2 only takes date/time and car type; location first appears at 1.3']],
+  ['C-04', 'customer', 'ระบบจะต้องแสดงข้อมูลรถ ที่สามารถให้ผู้เช่ารถเช่าได้', 'System shows cars available to rent', ['เช่ารถ › ขั้นที่ 2', 'Rent a car › Step 2'], '1.2', 'ดูข้อมูลรถที่เช่าได้', null],
+  ['C-05', 'customer', 'ระบบจะต้องอนุญาตให้ผู้เช่ารถเลือกเช่ารถที่ต้องการได้', 'Renter selects the car they want', ['เช่ารถ › ขั้นที่ 2', 'Rent a car › Step 2'], '1.3', 'เลือกเช่ารถที่ต้องการ', null],
+  ['C-06', 'customer', 'ระบบแสดงข้อมูลการเช่ารถพร้อมคำนวนค่าใช้จ่าย + ค่ามัดจำการเช่ารถให้ผู้เช่าตรวจสอบและยืนยันข้อมูล', 'System shows rental cost + deposit for review and confirmation', ['เช่ารถ › ขั้นที่ 3', 'Rent a car › Step 3'], '1.3', 'ทำการเช่ารถ', ['ไม่มี field "ค่ามัดจำ" ใน DFD (D4/D5 มีแค่ ยอดชำระ)', 'No deposit field anywhere in the DFD (D4/D5 only carry ยอดชำระ)']],
+  ['C-07', 'customer', 'ระบบจะต้องอนุญาตให้ผู้เช่ารถสามารถจองเช่ารถผ่านระบบได้', 'Renter books a car through the system', ['เช่ารถ › ยืนยัน + ชำระเงิน', 'Rent a car › Confirm + pay'], '1.3, 1.4', 'เช่ารถผ่านระบบ', null],
+  ['C-08', 'customer', 'ระบบจะต้องอนุญาตให้ผู้เช่ารถสามารถยกเลิกการจองเช่ารถ', 'Renter can cancel a booking (unpaid)', ['การเช่าของฉัน › ยกเลิกการจอง (รอชำระ)', 'My rentals › Cancel booking (unpaid)'], '2.3', 'ยกเลิกการเช่า', null],
+  ['C-09', 'customer', 'ระบบจะต้องส่งรายละเอียดสัญญาการเช่ารถให้กับผู้เช่า', 'System sends the rental contract to the renter', ['กล่องข้อความ + สัญญาเช่า', 'Inbox + Contract'], '-', '-', ['ไม่มี use case และไม่มี data flow ส่งสัญญาให้ผู้เช่า (narrative 1 ข้อ 5–6 พูดถึง แต่ diagram ไม่มี)', 'No use case or data flow for sending the contract (narrative 1 steps 5–6 mention it; the diagrams do not)']],
+  ['C-10', 'customer', 'ระบบจะต้องแสดงช่องทางการชำระเงินสำหรับการเช่ารถ', 'System shows payment channels', ['Payment Service › เลือกช่องทาง', 'Payment Service › Method'], '1.4', 'ชำระเงิน', null],
+  ['C-11', 'customer', 'ระบบจะต้องแสดงข้อมูลการรับรถให้กับผู้เช่า(เวลา สถานที่)', 'System shows pick-up info (time, place)', ['การเช่าของฉัน › รายละเอียด', 'My rentals › Details'], '2.1', 'ดูข้อมูลการเช่า', null],
+  ['C-12', 'customer', 'ระบบจะต้องมีข้อมูลการเช่ารถให้ผู้เช้าสามารถเข้าไปตรวจสอบข้อมูลได้', 'Renter can view rental information', ['การเช่าของฉัน', 'My rentals'], '2.1', 'ดูข้อมูลการเช่า', null],
+  ['C-13', 'customer', 'ระบบจะต้องอนุญาตให้ผู้เช่าสามารถเข้าไปดำเนินการแก้ไขข้อมูลการเช่ารถได้ (เปลี่ยนวันเวลา, รุ่นรถ)', 'Renter can edit a rental (dates, car model)', ['การเช่าของฉัน › แก้ไข', 'My rentals › Edit'], '2.2', 'แก้ไขข้อมูลการเช่ารถ', null],
+  ['C-14', 'customer', 'ระบบจะต้องแสดงข้อมูลพร้อมค่าใช้จ่ายเพิ่มเติมในการเปลี่ยนแปลงข้อมูลการเช่ารถให้ผู้เช่ารถตรวจสอบและยืนยันข้อมูล', 'System shows the extra cost of a change for confirmation', ['การเช่าของฉัน › แก้ไข › สรุปส่วนต่าง', 'My rentals › Edit › Difference'], '2.2, 2.4', 'ชำระค่าส่วนต่างเมื่อแก้ไขการเช่า', null],
+  ['C-15', 'customer', 'ระบบจะต้องแสดงข้อมูลใบแจ้งหนี้ให้กับผู้เช่ารถ', 'System shows the invoice', ['การเช่าของฉัน › ใบแจ้งหนี้', 'My rentals › Invoice'], '1.4 (ใบเสร็จ)', '-', ['ไม่มี use case "ดูใบแจ้งหนี้" DFD มีแค่ "ใบเสร็จ" ที่ 1.4', 'No "view invoice" use case; DFD only has a receipt at 1.4']],
+  ['C-16', 'customer', 'ระบบจะต้องอนุญาตให้ผู้เช่ารถสามรถยกเลิกการเช่ารถ', 'Renter can cancel a paid rental', ['การเช่าของฉัน › ยกเลิกการเช่า', 'My rentals › Cancel rental'], '2.3', 'ยกเลิกการเช่า', null],
+  ['C-17', 'customer', 'ระบบจะต้องทำการคืนเงินให้กับผู้เช่ารถ เมื่อผู้เช่ารถยกเลิกการจอง', 'System refunds the renter on cancellation', ['การเช่าของฉัน › ยกเลิก › คืนเงิน', 'My rentals › Cancel › Refund'], '-', '-', ['DFD 2.3 ไม่มี flow คืนเงินไป Payment Service / D5', 'DFD 2.3 has no refund flow to Payment Service or D5']],
+  ['C-18', 'customer', 'ระบบจะต้องอนุญาตให้ผู้เช่าเซ็นสัญญาการเช่ารถในระบบ', 'Renter signs the rental contract in the system', ['การเช่าของฉัน › เซ็นสัญญา', 'My rentals › Sign contract'], '-', '-', ['ไม่มี use case "เซ็นสัญญา" และไม่มี data store สัญญาเช่า', 'No "sign contract" use case and no contract data store']],
+  ['C-19', 'customer', 'ระบบจะต้องคืนเงินค่ามัดจำให้กับผู้เช่า เมื่อผู้เช่าคืนรถและไม่มีค่าเสียหายที่ต้องชำระ', 'System refunds the deposit when the car is returned undamaged', ['พนักงาน › รับคืนรถ → การเช่าของฉัน', 'Staff › Return → My rentals'], '-', '-', ['DFD 2.6 ส่งออกแค่ "สถานะรถ, ค่าปรับคืนช้า" ไม่มีคืนมัดจำ', 'DFD 2.6 only outputs car status and late fee; no deposit refund']],
+  ['OM-01', 'office_manager', 'ระบบจะต้องอนุญาตให้ office Manager เข้าสู่ระบบ', 'Office Manager can sign in', ['หน้าเข้าสู่ระบบ', 'Login'], '4', 'เข้าสู่ระบบ', null],
+  ['OM-02', 'office_manager', 'ระบบจะต้องอนุญาตให้ office manager สามารถดูข้อมูลในระบบ', 'Office Manager can view system data', ['ข้อมูลในระบบ', 'System data'], '4', 'ดูข้อมูลในระบบ', null],
+  ['OM-03', 'office_manager', 'ระบบจะต้องแสดงข้อมููลจำนวนการจอง, จำนวนที่ถูกเช่า และรายได้ประจำวัน ให้กับ office manager', 'Shows bookings, rented count and daily revenue', ['แดชบอร์ด', 'Dashboard'], '4', 'ดูข้อมูลในระบบ', null],
+  ['OM-04', 'office_manager', 'ระบบจะต้องอนุญาตให้ office manager สามารถจัดการข้อมูลของพนักงานในระบบ', 'Office Manager manages employee records', ['พนักงาน', 'Employees'], '4', 'จัดการข้อมูลของพนักงาน', null],
+  ['OM-05', 'office_manager', 'ระบบจะต้องอนุญาตให้ office manager สามารถจัดการอัตราค่าเช่าต่างๆ', 'Office Manager manages rental rates', ['อัตราค่าเช่า', 'Rental rates'], '3.2', 'จัดการอัตราค่าเช่า', null],
+  ['OM-06', 'office_manager', 'ระบบจะต้องแสดงข้อมููลอัตราค่าเช่าต่างๆ ให้กับ office manager', 'Shows rental rates to the Office Manager', ['อัตราค่าเช่า', 'Rental rates'], '3.2', 'จัดการอัตราค่าเช่า', null],
+  ['ME-01', 'mechanic', 'ระบบจะต้องอนุญาตให้ Mechanic Employee เข้าสู่ระบบ', 'Mechanic Employee can sign in', ['หน้าเข้าสู่ระบบ', 'Login'], '3.1', 'เข้าสู่ระบบ', null],
+  ['ME-02', 'mechanic', 'ระบบจะต้องสามารถให้ Mechanic Employee ดูรายการรถที่ได้รับมอบหมายให้ตรวจสอบ', 'Mechanic sees cars assigned for inspection', ['งานที่ได้รับมอบหมาย', 'My assigned jobs'], '3.4', 'ดูรายการรถที่ได้รับมอบหมายให้ไปตรวจสอบ', null],
+  ['ME-03', 'mechanic', 'ระบบจะต้องอนุญาตให้ Mechanic Employee บันทึกข้อมูลการบำรุงรักษา', 'Mechanic records maintenance data', ['บันทึกข้อมูลการจัดการรถ', 'Record car work'], '3.4', 'บันทึกข้อมูลการบำรุงรักษา', null],
+  ['ME-04', 'mechanic', 'ระบบจะต้องอนุญาตให้ Mechanic Employee บันทึกผลการตรวจสอบรถ', 'Mechanic records inspection results', ['บันทึกข้อมูลการจัดการรถ', 'Record car work'], '3.4', 'บันทึกผลการตรวจสอบรถ', null],
+  ['ME-05', 'mechanic', 'ระบบจะต้องอนุญาตให้ Mechanic Employee รายงานสถานะความคืบหน้า', 'Mechanic reports progress', ['งานที่ได้รับมอบหมาย › รายงาน', 'My jobs › Report'], '3.4', 'รายงานสถานะความคืบหน้า', null],
+  ['ME-06', 'mechanic', 'ระบบจะต้องอนุญาตให้ Mechanic Employee ดูค่าใช้จ่ายการบำรุงรักษา', 'Mechanic views maintenance costs', ['ค่าใช้จ่ายการบำรุงรักษา', 'Maintenance costs'], '3.4', 'ดูค่าใช้จ่ายด้านการบำรุงรักษา', null],
+  ['OE-01', 'office_employee', 'ระบบจะต้องอนุญาตให้ office employee เข้าสู่ระบบ', 'Office Employee can sign in', ['หน้าเข้าสู่ระบบ', 'Login'], '1.2', 'เข้าสู่ระบบ', null],
+  ['OE-02', 'office_employee', 'ระบบจะต้องอนุญาตให้ office employee ตรวจสอบรถที่ว่างได้', 'Office Employee checks available cars', ['ตรวจสอบรถว่าง', 'Check availability'], '1.2', 'ตรวจสอบรถที่ว่าง', null],
+  ['OE-03', 'office_employee', 'ระบบจะต้องอนุญาตให้ office employee สร้างรายการเช่ารถได้', 'Office Employee creates a rental', ['สร้างรายการเช่า', 'New rental'], '1.3', '-', ['Use case diagram ไม่มี "สร้างรายการเช่า" ฝั่ง Office Employee (DFD 1.3 มี flow แล้ว)', 'Use case diagram has no "create rental" for Office Employee (DFD 1.3 already has the flow)']],
+  ['OE-04', 'office_employee', 'ระบบจะต้องอนุญาตให้ office employee แก้ไขรายการจองให้ผู้เช่ารถได้', 'Office Employee edits a booking', ['รายการเช่าทั้งหมด › แก้ไข', 'All rentals › Edit'], '2.2', 'แก้ไขการเช่า', null],
+  ['OE-05', 'office_employee', 'ระบบจะต้องอนุญาตให้ office employee ลบรายการเช่ารถได้', 'Office Employee deletes (cancels) a rental', ['รายการเช่าทั้งหมด › ลบ', 'All rentals › Delete'], '2.3', 'ลบรายการเช่า', null],
+  ['OE-06', 'office_employee', 'ระบบจะต้องอนุญาตให้ office employee ติดตามการส่งมอบรถของผู้เช่ารถได้', 'Office Employee tracks car hand-over', ['ส่งมอบรถ', 'Hand-over'], '2.5', 'ส่งมอบรถ', null],
+  ['OE-07', 'office_employee', 'ระบบจะต้องอนุญาตให้ office employee ติดตามการคืนรถของผู้เช่ารถได้', 'Office Employee tracks car returns', ['รับคืนรถ', 'Returns'], '2.6', 'คืนรถลูกค้า', null],
+  ['MM-01', 'mechanic_manager', 'ระบบจะต้องอนุญาตให้ Mechanic Manager เข้าสู่ระบบ', 'Mechanic Manager can sign in', ['หน้าเข้าสู่ระบบ', 'Login'], '3.1', 'เข้าสู่ระบบ', null],
+  ['MM-02', 'mechanic_manager', 'ระบบจะต้องอนุญาตให้ Mechanic Manager สามารถดูสถานะทั้งหมดได้', 'Mechanic Manager views all car statuses', ['สถานะรถทั้งหมด', 'Fleet status'], '3.5', 'ดูสถานะของรถทั้งหมด', null],
+  ['MM-03', 'mechanic_manager', 'ระบบจะต้องอนุญาตให้ Mechanic Manager สามารถดูจำนวนของรถที่ซ่อมทั้งหมดได้', 'Mechanic Manager views the number of cars in repair', ['สถานะรถทั้งหมด', 'Fleet status'], '3.5', 'ดูสถานะของรถทั้งหมด', null],
+  ['MM-04', 'mechanic_manager', 'ระบบจะต้องอนุญาตให้ Mechanic Manager สามารถดูค่าใช้จ่ายด้านการซ่อมทั้งหมด', 'Mechanic Manager views total repair costs', ['ค่าใช้จ่ายการซ่อม', 'Repair costs'], '-', '-', ['ไม่มี use case และ DFD 3.5 ไม่ส่งค่าใช้จ่ายให้หัวหน้าช่าง', 'No use case, and DFD 3.5 sends no cost data to the Mechanic Manager']],
+  ['MM-05', 'mechanic_manager', 'ระบบจะต้องอนุญาตให้ Mechanic Manager สามารถดูตารางการบำรุงรักษารถตามระยะเวลา ระยะทาง และการตรวจสอบรายปี', 'Maintenance schedule by time, distance and annual inspection', ['ตารางบำรุงรักษา', 'Maintenance schedule'], '-', '-', ['ไม่มี use case และไม่มี data flow ตารางบำรุงรักษา', 'No use case and no data flow for the maintenance schedule']],
+  ['MM-06', 'mechanic_manager', 'ระบบจะต้องอนุญาตให้ Mechanic Manager สามารถมอบหมายงานให้ Mechanic Employee ได้', 'Mechanic Manager assigns work to mechanics', ['มอบหมายงาน', 'Assign jobs'], '3.3', 'มอบหมายงานให้พนักงาน', null],
+  ['MM-07', 'mechanic_manager', 'ระบบจะต้องอนุญาตให้ Mechanic Manager สามารถตรวจสอบ และ อนุมัติว่ารถพร้อมใช้งานหลังซ่อม', 'Mechanic Manager approves a car as ready after repair', ['อนุมัติรถพร้อมใช้', 'Approve ready'], '-', '-', ['ไม่มี use case "อนุมัติรถพร้อมใช้งาน" และไม่มี flow อัปเดตสถานะรถหลังอนุมัติ', 'No "approve car ready" use case and no flow updating car status after approval']],
+  ['MM-08', 'mechanic_manager', 'ระบบจะต้องอนุญาตให้ Mechanic Manager สามารถตรวจสอบ และ จัดการประวัติการซ่อมของรถแต่ละคันได้', 'Mechanic Manager reviews and manages repair history per car', ['ประวัติการซ่อม', 'Repair history'], '3.5', 'จัดการประวัติการซ่อม', null],
+  ['BM-01', 'big_manager', 'ระบบจะต้องอนุญาตให้ Big Manager เข้าสู่ระบบ', 'Big Manager can sign in', ['หน้าเข้าสู่ระบบ', 'Login'], '4', 'เข้าสู่ระบบ', null],
+  ['BM-02', 'big_manager', 'ระบบจะต้องอนุญาตให้ Big Manager สามารถดูภาพรวมบริษัทได้ (รายได้รวม จำนวนการเช่า รถทั้งหมด รถที่ถูกเช่า รถที่ซ่อม จำนวนลูกค้า)', 'Company overview', ['ภาพรวมบริษัท', 'Company overview'], '4', 'ดูภาพรวมบริษัท', null],
+  ['BM-03', 'big_manager', 'ระบบจะต้องสร้างผลวิเคราะห์รายได้เพื่อให้ Big Manager วิเคราะห์รายได้ตามเงื่อนไข (วัน เดือน ปี ประเภทรถ สาขา) ได้', 'Revenue analysis by day/month/year, car type, branch', ['วิเคราะห์รายได้', 'Revenue analysis'], '4', 'วิเคราะห์รายได้ตามเงื่อนไข', null],
+  ['BM-04', 'big_manager', 'ระบบจะต้องอนุญาตให้ Big Manager สามารถดูตัวชี้วัด (เช่น รายได้ กำไร ค่าใช้จ่าย จำนวนลูกค้าใหม่ อัตราการยกเลิก) ได้', 'KPIs (revenue, profit, expenses, new customers, cancellation rate)', ['ตัวชี้วัด (KPI)', 'KPIs'], '4', 'ดูตัวชี้วัด', null],
+  ['BM-05', 'big_manager', 'ระบบจะต้องอนุญาตให้ Big Manager สามารถดูรายงานทั้งหมดได้', 'Big Manager views all reports', ['รายงานทั้งหมด', 'All reports'], '4', 'ดูรายงานทั้งหมด', null],
+  ['BM-06', 'big_manager', 'ระบบจะต้องอนุญาตให้ Big Manager สามารถ Export รายงานได้', 'Big Manager exports reports', ['รายงานทั้งหมด › Export', 'All reports › Export'], '4', 'Export รายงาน', null],
+].map(([id, actor, th, en, screen, dfd, uc, gap]) => ({ id, actor, th, en, screen, dfd, uc, gap }));
+
+const FR_GAPS = FRS.filter(f => f.gap && f.dfd === '-' || ['C-06', 'OE-03', 'C-15'].includes(f.id)).map(f => f.id);
+function frText(id) { const f = FRS.find(x => x.id === id); return f ? `${f.id}: ${tt(f.th, f.en)}` : id; }
+
+/* use cases on the diagram that no FR owns (reverse gaps) */
+const UC_WITHOUT_FR = [
+  ['ตรวจสอบค่าใช้จ่ายในการซ่อมรถ (ผู้เช่ารถ)', 'Check repair costs (Customer)', 'DFD 3.4 → ผู้เช่ารถ: รายการซ่อม, ค่าใช้จ่ายการซ่อมรถ'],
+  ['ดูอัตราการใช้งานของรถแต่ละคัน (Mechanic Manager)', 'View utilisation per car (Mechanic Manager)', 'DFD 3.5 → หัวหน้าช่าง: อัตราการใช้งานรถแต่ละคัน'],
+];
+
+/* role registry, filled by each role file */
+const Roles = {};
