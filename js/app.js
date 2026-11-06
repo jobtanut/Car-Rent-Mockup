@@ -18,23 +18,54 @@ const icon = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 const DEMO = [['somchai', 'customer'], ['office1', 'office_employee'], ['manager1', 'office_manager'], ['mech1', 'mechanic'], ['mechlead', 'mechanic_manager'], ['ceo', 'big_manager']];
 const SESSION_KEY = 'crms_session';
 
+/* Everyone uses the customer app. Staff get extra "areas" from the top-right menu;
+   higher roles inherit the areas of the roles below them, and the CEO gets all of them. */
+const AREAS = {
+  customer: ['หน้าลูกค้า (เช่ารถ)', 'Customer app', 'car'],
+  big_manager: ['ภาพรวมบริษัท', 'Company overview', 'chart'],
+  office_employee: ['งานออฟฟิศ', 'Office work', 'list'],
+  office_manager: ['จัดการออฟฟิศ', 'Office management', 'users'],
+  mechanic: ['งานช่าง', 'Mechanic work', 'wrench'],
+  mechanic_manager: ['จัดการงานซ่อม', 'Repair management', 'check'],
+};
+const ACCESS = {
+  customer: ['customer'],
+  office_employee: ['customer', 'office_employee'],
+  office_manager: ['customer', 'office_employee', 'office_manager'],
+  mechanic: ['customer', 'mechanic'],
+  mechanic_manager: ['customer', 'mechanic', 'mechanic_manager'],
+  big_manager: ['customer', 'big_manager', 'office_employee', 'office_manager', 'mechanic', 'mechanic_manager'],
+};
+const areaName = a => tt(AREAS[a][0], AREAS[a][1]);
+
 const App = {
-  user: null, view: null, params: {}, screen: 'login', loginFails: {},
+  user: null, area: 'customer', view: null, params: {}, screen: 'login', loginFails: {},
   init() {
     Store.load();
     document.documentElement.lang = I18N.lang;
-    try { if (localStorage.getItem('crms_trace') === 'off') document.body.classList.add('no-trace'); } catch (e) {}
     let s = null; try { s = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); } catch (e) {}
-    if (s && Store.user(s.id) && Store.user(s.id).status === 'active') { this.user = Store.user(s.id); this.screen = 'app'; this.view = s.view || Roles[this.user.role].nav[0][0]; }
+    if (s && Store.user(s.id) && Store.user(s.id).status === 'active') {
+      this.user = Store.user(s.id); this.screen = 'app';
+      this.area = this.canUse(s.area) ? s.area : 'customer';
+      this.view = s.view || Roles[this.area].nav[0][0];
+    }
     this.render();
   },
-  saveSession() { try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ id: this.user.id, view: this.view })); } catch (e) {} },
+  canUse(area) { return !!(this.user && area && (ACCESS[this.user.role] || []).includes(area)); },
+  staffAreas() { return this.user ? (ACCESS[this.user.role] || []).filter(a => a !== 'customer') : []; },
+  saveSession() { try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ id: this.user.id, area: this.area, view: this.view })); } catch (e) {} },
   go(view, params = {}) { this.view = view; this.params = params; this.saveSession(); this.render(); window.scrollTo(0, 0); },
+  enter(area, view, params = {}) {
+    if (!this.canUse(area)) { UI.toast(tt('คุณไม่มีสิทธิ์เข้าถึงส่วนนี้', 'You do not have access to this area'), 'err'); return; }
+    this.area = area; this.screen = 'app';
+    if (area === 'customer' && !view) CustomerViews.resetWiz();
+    this.go(view || Roles[area].nav[0][0], params);
+  },
   home() {
-    if (this.user) { this.screen = 'app'; if (this.user.role === 'customer') CustomerViews.resetWiz(); this.go(Roles[this.user.role].nav[0][0]); }
+    if (this.user) this.enter('customer');
     else { this.screen = 'login'; this.render(); window.scrollTo(0, 0); }
   },
-  logout() { this.user = null; this.screen = 'login'; try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {} CustomerViews.wiz = null; this.render(); },
+  logout() { this.user = null; this.area = 'customer'; this.screen = 'login'; try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {} CustomerViews.wiz = null; this.render(); },
   async resetData() {
     if (!(await UI.confirm(tt('รีเซ็ตข้อมูลตัวอย่าง?', 'Reset demo data?'), `<p>${tt('ข้อมูลทั้งหมดที่สร้างหรือแก้ไขจะถูกลบ และโหลดข้อมูลตัวอย่างชุดเดิมกลับมา', 'Everything you created or changed is wiped and the original demo data is reloaded.')}</p>`, { danger: true, okText: tt('รีเซ็ต', 'Reset') }))) return;
     Store.reset(); CustomerViews.wiz = null;
@@ -42,7 +73,6 @@ const App = {
     if (!this.user) this.screen = this.screen === 'app' ? 'login' : this.screen;
     UI.toast(tt('รีเซ็ตข้อมูลแล้ว', 'Demo data reset'), 'ok'); this.render();
   },
-  toggleTrace() { const off = document.body.classList.toggle('no-trace'); try { localStorage.setItem('crms_trace', off ? 'off' : 'on'); } catch (e) {} this.render(); },
 
   tools() {
     return `<div class="seg" title="Language"><button class="${I18N.lang === 'th' ? 'on' : ''}" data-lang="th">TH</button><button class="${I18N.lang === 'en' ? 'on' : ''}" data-lang="en">EN</button></div>
@@ -71,18 +101,53 @@ const App = {
     return this.renderLogin(root);
   },
 
+  /* top-right menu: only for accounts with staff rights */
+  staffMenu() {
+    const areas = this.staffAreas();
+    if (!areas.length) return '';
+    const inStaff = this.area !== 'customer';
+    return `<div class="dropdown"><button class="btn btn-sm ${inStaff ? 'btn-primary' : ''}" data-staffmenu aria-haspopup="true" aria-expanded="false">${icon('users')}<span>${inStaff ? esc(areaName(this.area)) : tt('พื้นที่พนักงาน', 'Staff area')}</span> ▾</button>
+      <div class="dropdown-pop hidden" role="menu">
+        <div class="dropdown-label">${tt('พื้นที่พนักงาน', 'Staff area')}</div>
+        ${areas.map(a => `<button class="dropdown-item ${this.area === a ? 'on' : ''}" role="menuitem" data-area="${a}">${icon(AREAS[a][2])}<span>${esc(areaName(a))}</span></button>`).join('')}
+        <div class="dropdown-sep"></div>
+        <button class="dropdown-item ${this.area === 'customer' ? 'on' : ''}" role="menuitem" data-area="customer">${icon('car')}<span>${esc(areaName('customer'))}</span></button>
+      </div></div>`;
+  },
+  bindStaffMenu(root) {
+    const btn = $('[data-staffmenu]', root); if (!btn) return;
+    const pop = btn.nextElementSibling;
+    const close = () => { pop.classList.add('hidden'); btn.setAttribute('aria-expanded', 'false'); };
+    btn.onclick = e => {
+      e.stopPropagation(); const open = pop.classList.toggle('hidden') === false; btn.setAttribute('aria-expanded', String(open));
+      if (!open) return;
+      // right-aligned by default; flip to left-aligned if that would spill off-screen (narrow, wrapped top bar)
+      pop.style.left = ''; pop.style.right = '';
+      if (pop.getBoundingClientRect().left < 8) { pop.style.right = 'auto'; pop.style.left = '0'; }
+    };
+    $$('[data-area]', pop).forEach(b => b.onclick = () => { close(); this.enter(b.dataset.area); });
+    if (this._outside) document.removeEventListener('click', this._outside);
+    this._outside = e => { if (!pop.contains(e.target) && e.target !== btn) close(); };
+    document.addEventListener('click', this._outside);
+    pop.onkeydown = e => { if (e.key === 'Escape') { close(); btn.focus(); } };
+  },
+
   renderApp(root) {
-    const role = Roles[this.user.role];
+    if (!this.canUse(this.area)) this.area = 'customer';
+    const role = Roles[this.area];
     if (!role.views[this.view]) this.view = role.nav[0][0];
+    const inStaff = this.area !== 'customer';
     root.innerHTML = `<header class="topbar"><div class="brand" data-home role="button" tabindex="0" title="หน้าแรก / Home" style="cursor:pointer"><span class="brand-mark">${icon('logo')}</span><span>${tt('ระบบบริหารจัดการบริษัทให้เช่ารถ', 'Car Rental Management System')}</span></div>
       <span class="role-pill">${esc(roleName(this.user.role))}</span><div class="spacer"></div>${this.tools()}
+      ${this.staffMenu()}
       <span class="user-name">${esc(fullName(this.user))}</span><button class="btn btn-sm" data-logout>${tt('ออกจากระบบ', 'Sign out')}</button></header>
-      <div class="layout"><nav class="sidebar"><div class="nav-label">${tt('เมนู', 'Menu')}</div>
+      <div class="layout"><nav class="sidebar"><div class="nav-label">${inStaff ? esc(areaName(this.area)) : tt('เมนู', 'Menu')}</div>
         ${role.nav.map(([id, th, en, ic]) => { const n = role.badge && role.badge[id] ? role.badge[id]() : 0; return `<button class="nav-item ${this.view === id ? 'active' : ''}" data-nav="${id}">${icon(ic)}<span>${esc(tt(th, en))}</span>${n ? `<span class="nav-badge">${n}</span>` : ''}</button>`; }).join('')}
       </nav><main class="main" id="main"></main></div>`;
     this.bindTools(root);
+    this.bindStaffMenu(root);
     $('[data-logout]', root).onclick = () => this.logout();
-    $$('[data-nav]', root).forEach(b => b.onclick = () => { if (this.user.role === 'customer' && b.dataset.nav === 'rent' && CustomerViews.wiz && CustomerViews.wiz.step === 4) CustomerViews.resetWiz(); this.go(b.dataset.nav); });
+    $$('[data-nav]', root).forEach(b => b.onclick = () => { if (this.area === 'customer' && b.dataset.nav === 'rent' && CustomerViews.wiz && CustomerViews.wiz.step === 4) CustomerViews.resetWiz(); this.go(b.dataset.nav); });
     this.syncTopbar();
     try { role.views[this.view]($('#main', root)); }
     catch (err) { console.error(err); $('#main', root).innerHTML = `<div class="alert alert-danger">${esc(err.message)}</div>`; }
@@ -131,7 +196,7 @@ const App = {
         }
         if (u.status !== 'active') throw new AppError(tt('บัญชีนี้ถูกระงับการใช้งาน กรุณาติดต่อผู้จัดการออฟฟิศ', 'This account is deactivated. Please contact the Office Manager.'));
         delete this.loginFails[un];
-        this.user = u; this.screen = 'app'; this.view = Roles[u.role].nav[0][0]; this.params = {}; this.saveSession();
+        this.user = u; this.screen = 'app'; this.area = 'customer'; CustomerViews.resetWiz(); this.view = Roles.customer.nav[0][0]; this.params = {}; this.saveSession();
         UI.toast(tt(`ยินดีต้อนรับ คุณ${u.firstName}`, `Welcome, ${u.firstName}`), 'ok');
         this.render();
       } catch (err) { UI.showError(f, err); }

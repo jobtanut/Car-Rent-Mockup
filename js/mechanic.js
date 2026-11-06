@@ -1,6 +1,8 @@
 /* ===== ช่างซ่อมบำรุง (Mechanic Employee) + หัวหน้าช่าง (Mechanic Manager) — DFD process 3 ===== */
 const CHECK_ITEMS = [['tyres', 'ยางและล้อ', 'Tyres & wheels'], ['brakes', 'ระบบเบรก', 'Brakes'], ['lights', 'ไฟส่องสว่าง', 'Lights'], ['engine', 'เครื่องยนต์ / ของเหลว', 'Engine / fluids'], ['body', 'ตัวถังและกระจก', 'Body & glass']];
 
+const mineOrAll = j => App.user.role !== 'mechanic' || j.assignedTo === App.user.id;
+
 const MechViews = {
   jobCard(j, { manager = false } = {}) {
     const car = Store.car(j.plate), mech = j.assignedTo && Store.user(j.assignedTo);
@@ -47,7 +49,7 @@ const MechViews = {
 
   /* ME-02, ME-05 */
   jobs(el) {
-    const mine = Store.db.jobs.filter(j => j.assignedTo === App.user.id && j.status !== 'approved').sort((a, b) => (a.assignedAt || 0) - (b.assignedAt || 0));
+    const mine = Store.db.jobs.filter(j => j.assignedTo && mineOrAll(j) && j.status !== 'approved').sort((a, b) => (a.assignedAt || 0) - (b.assignedAt || 0));
     el.innerHTML = UI.pageHead('รายการรถที่ได้รับมอบหมาย', 'Assigned cars', 'งานตรวจสอบและซ่อมที่หัวหน้าช่างมอบหมายให้คุณ', 'Inspection and repair work assigned to you', ['ME-02', 'ME-05'], ['3.4'])
       + (mine.length ? `<div class="grid g2">${mine.map(j => this.jobCard(j)).join('')}</div>` : `<div class="card empty">${tt('ไม่มีงานค้าง', 'No open jobs')}</div>`);
     mine.forEach(j => {
@@ -105,7 +107,7 @@ const MechViews = {
   record(el) {
     const p = App.params;
     /* only cars with an open job assigned to this mechanic */
-    const todo = [...new Map(Store.db.jobs.filter(j => j.assignedTo === App.user.id && !['approved', 'done'].includes(j.status))
+    const todo = [...new Map(Store.db.jobs.filter(j => j.assignedTo && mineOrAll(j) && !['approved', 'done'].includes(j.status))
       .map(j => [j.plate, { plate: j.plate, label: carName(Store.car(j.plate)) }])).values()];
     el.innerHTML = UI.pageHead('บันทึกข้อมูลการจัดการรถ', 'Record car work', 'เลือกรถที่ต้องทำงาน แล้วบันทึกผลการตรวจสอบและข้อมูลการบำรุงรักษา', 'Choose a car that needs work, then record inspection results and maintenance', ['ME-03', 'ME-04'], ['3.4'])
       + `<div class="card"><form id="sf" class="form" novalidate><div class="form-alert"></div>
@@ -119,7 +121,7 @@ const MechViews = {
         UI.require(sf, ['plate']);
         const car = Store.car(sel.value);
         if (!car) throw new AppError(tt('ไม่มีข้อมูลรถคันนี้ในระบบ', 'No such car in the system'), 'plate');
-        const jobs = Store.db.jobs.filter(j => j.plate === car.plate && j.assignedTo === App.user.id && !['approved', 'done'].includes(j.status));
+        const jobs = Store.db.jobs.filter(j => j.plate === car.plate && j.assignedTo && mineOrAll(j) && !['approved', 'done'].includes(j.status));
         if (!jobs.length) throw new AppError(tt('รถคันนี้ไม่มีงานที่มอบหมายให้คุณ (หรือส่งรออนุมัติแล้ว)', 'No open job on this car is assigned to you (or it is awaiting approval)'), 'plate');
         App.params = { plate: car.plate };
         this.workForms($('#work', el), car, jobs.find(j => j.id === p.job) || jobs[0]);
@@ -179,7 +181,7 @@ const MechViews = {
 
   /* ME-06 */
   costs(el) {
-    const mine = Store.db.jobs.filter(j => j.assignedTo === App.user.id);
+    const mine = Store.db.jobs.filter(j => j.assignedTo && mineOrAll(j));
     const rows = mine.flatMap(j => [...j.logs.map(l => ({ j, at: l.at, item: l.work, parts: l.parts, cost: l.cost, src: tt('ซ่อมภายใน', 'In-house') })), ...(j.shop ? [{ j, at: j.shop.at, item: j.shop.result, parts: '-', cost: j.shop.cost, src: tt('อู่ภายนอก', 'Repair shop') }] : [])]).sort((a, b) => b.at - a.at);
     const total = rows.reduce((s, r) => s + r.cost, 0);
     el.innerHTML = UI.pageHead('ค่าใช้จ่ายการบำรุงรักษา', 'Maintenance costs', 'ค่าใช้จ่ายจากงานที่คุณรับผิดชอบ', 'Costs from jobs you worked on', ['ME-06'], ['3.4'])
@@ -325,7 +327,7 @@ const MechViews = {
 
 Roles.mechanic = {
   nav: [['jobs', 'งานที่ได้รับมอบหมาย', 'Assigned jobs', 'list'], ['record', 'บันทึกข้อมูลการจัดการรถ', 'Record car work', 'wrench'], ['costs', 'ค่าใช้จ่ายการบำรุงรักษา', 'Maintenance costs', 'coin']],
-  badge: { jobs: () => Store.db.jobs.filter(j => j.assignedTo === App.user.id && ['assigned', 'sent_to_shop', 'in_progress'].includes(j.status)).length },
+  badge: { jobs: () => Store.db.jobs.filter(j => j.assignedTo && mineOrAll(j) && ['assigned', 'sent_to_shop', 'in_progress'].includes(j.status)).length },
   views: { jobs: el => MechViews.jobs(el), record: el => MechViews.record(el), costs: el => MechViews.costs(el) },
 };
 Roles.mechanic_manager = {

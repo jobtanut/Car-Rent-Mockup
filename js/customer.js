@@ -4,109 +4,18 @@ const CustomerViews = {
   resetWiz() {
     const s = new Date(Date.now() + DAY); s.setHours(10, 0, 0, 0);
     const e = new Date(s.getTime() + 2 * DAY);
-    this.wiz = { mode: null, step: 1, start: s.getTime(), end: e.getTime(), branch: 'SVB', type: '', plate: null, bookingId: null, clicks: 0 };
-  },
-
-  /* first choice: which side does the renter want to fix first? */
-  chooseMode(el) {
-    el.innerHTML = UI.pageHead('เช่ารถ', 'Rent a car', 'เลือกว่าจะเริ่มจากวันเวลารับรถ หรือเริ่มจากรถที่ต้องการ', 'Start from your pick-up details or from the car you want', ['C-03', 'C-04', 'C-05'], ['1.2'])
-      + `<div class="grid g2" style="align-items:stretch">
-        <button class="card pay-method" data-mode="pickup" style="padding:22px;margin:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:flex-start;gap:4px"><div style="font-size:28px">📅</div><b style="font-size:16px;margin:6px 0 0">${tt('เลือกวันเวลาและสถานที่รับรถก่อน', 'Pick-up first')}</b>
-          <span class="muted">${tt('ระบุวันเวลาและสาขา แล้วระบบแสดงเฉพาะรถที่ว่างในช่วงนั้น', 'Enter dates and branch, then see only the cars free for that period')}</span></button>
-        <button class="card pay-method" data-mode="car" style="padding:22px;margin:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:flex-start;gap:4px"><div style="font-size:28px">🚗</div><b style="font-size:16px;margin:6px 0 0">${tt('เลือกรถก่อน', 'Car first')}</b>
-          <span class="muted">${tt('เลือกรุ่นรถที่ต้องการ แล้วระบบแสดงสาขาและวันที่รถคันนั้นว่าง', 'Choose the car you want, then see its branch and the days it is free')}</span></button></div>`;
-    $$('[data-mode]', el).forEach(b => b.onclick = () => { this.wiz.mode = b.dataset.mode; this.wiz.step = 1; this.wiz.plate = null; App.render(); });
-  },
-
-  /* car-first, step 2: availability of one car over the next 28 days */
-  carDays(plate, days = 28) {
-    const t0 = startOfDay(Date.now()).getTime();
-    return [...Array(days)].map((_, i) => { const a = t0 + i * DAY, z = a + DAY; return { a, free: Logic.isFree(plate, Math.max(a, Date.now()), z) }; });
+    this.wiz = { step: 1, start: s.getTime(), end: e.getTime(), branch: 'SVB', type: '', plate: null, bookingId: null };
   },
 
   /* ---------- rent a car: 1.2 search → 1.3 book → 1.4 pay ---------- */
   rent(el) {
     if (!this.wiz) this.resetWiz();
     const w = this.wiz;
-    if (!w.mode) return this.chooseMode(el);
-    const carFirst = w.mode === 'car';
-    const pickStep = ['เลือกวันเวลาและสถานที่', 'Date, time & place'], carStep = ['เลือกรถ', 'Choose a car'];
-    const steps = [carFirst ? carStep : pickStep, carFirst ? ['เลือกวันเวลารับรถ', 'Choose pick-up'] : carStep, ['ตรวจสอบและยืนยัน', 'Review & confirm'], ['เสร็จสิ้น', 'Done']];
-    const stepBar = `<div class="row" style="justify-content:space-between;margin-bottom:6px"><span class="small muted">${carFirst ? tt('โหมด: เลือกรถก่อน', 'Mode: car first') : tt('โหมด: เลือกวันเวลารับรถก่อน', 'Mode: pick-up first')}</span>${w.step < 4 ? `<button class="link-btn small" data-switch>${carFirst ? tt('เปลี่ยนเป็นเลือกวันเวลาก่อน', 'Switch to pick-up first') : tt('เปลี่ยนเป็นเลือกรถก่อน', 'Switch to car first')}</button>` : ''}</div>
-      <div class="steps">${steps.map((s, i) => `<div class="step ${i + 1 === w.step ? 'on' : i + 1 < w.step ? 'done' : ''}"><span class="n">${i + 1 < w.step ? '✓' : i + 1}</span>${esc(tt(...s))}</div>`).join('')}</div>`;
-    const frsByStep = { 1: carFirst ? ['C-04', 'C-05'] : ['C-03'], 2: carFirst ? ['C-03'] : ['C-04', 'C-05'], 3: ['C-06', 'C-07', 'C-10'], 4: ['C-07', 'C-09', 'C-18'] };
+    const steps = [['เลือกวันเวลาและสถานที่', 'Date, time & place'], ['เลือกรถ', 'Choose a car'], ['ตรวจสอบและยืนยัน', 'Review & confirm'], ['เสร็จสิ้น', 'Done']];
+    const stepBar = `<div class="steps">${steps.map((s, i) => `<div class="step ${i + 1 === w.step ? 'on' : i + 1 < w.step ? 'done' : ''}"><span class="n">${i + 1 < w.step ? '✓' : i + 1}</span>${esc(tt(...s))}</div>`).join('')}</div>`;
+    const frsByStep = { 1: ['C-03'], 2: ['C-04', 'C-05'], 3: ['C-06', 'C-07', 'C-10'], 4: ['C-07', 'C-09', 'C-18'] };
     const dfdByStep = { 1: ['1.2'], 2: ['1.2', '1.3'], 3: ['1.3', '1.4'], 4: ['1.4'] };
     let html = UI.pageHead('เช่ารถ', 'Rent a car', 'ค้นหารถว่าง เลือกรถ ยืนยัน และชำระเงิน', 'Search, choose, confirm and pay', frsByStep[w.step], dfdByStep[w.step]) + stepBar;
-    const bindSwitch = () => { const s = $('[data-switch]', el); if (s) s.onclick = () => { w.mode = carFirst ? 'pickup' : 'car'; w.step = 1; w.plate = null; App.render(); }; };
-
-    if (carFirst && w.step === 1) {
-      const cars = Store.db.cars.filter(c => (!w.type || c.type === w.type) && (!w.branchFilter || c.branch === w.branchFilter));
-      html += `<div class="card"><div class="card-head"><h3>${tt('เลือกรถที่ต้องการ', 'Choose your car')}</h3><div class="row">
-          <select id="ft" style="width:auto"><option value="">${tt('ทุกประเภท', 'All types')}</option>${TYPES.map(t => `<option value="${t.id}" ${t.id === w.type ? 'selected' : ''}>${esc(tt(t.th, t.en))}</option>`).join('')}</select>
-          <select id="fb" style="width:auto"><option value="">${tt('ทุกสาขา', 'All branches')}</option>${BRANCHES.map(b => `<option value="${b.id}" ${b.id === w.branchFilter ? 'selected' : ''}>${esc(tt(b.th, b.en))}</option>`).join('')}</select></div></div>
-        <div class="cars">${cars.map(car => { const free = this.carDays(car.plate, 28).filter(d => d.free).length; return `<div class="car">${UI.carArt(car)}<div class="car-body">
-          <div class="row" style="justify-content:space-between"><b>${esc(carName(car))}</b><span class="badge">${esc(typeName(car.type))}</span></div>
-          <div class="specs"><span>${car.year}</span><span>${TYPES.find(t => t.id === car.type).seats} ${tt('ที่นั่ง', 'seats')}</span><span>${esc(branchName(car.branch))}</span></div>
-          <div class="price">${money(Store.rate(car.type).daily)} <span class="small muted" style="font-weight:400">/ ${tt('วัน', 'day')}</span></div>
-          <div class="small ${free ? 'muted' : ''}" style="${free ? '' : 'color:var(--danger)'}">${free ? tt(`ว่าง ${free} จาก 28 วันข้างหน้า`, `Free ${free} of the next 28 days`) : tt('ไม่ว่างใน 28 วันข้างหน้า', 'Not free in the next 28 days')}</div>
-          <button class="btn btn-primary btn-sm" data-pick="${esc(car.plate)}" style="margin-top:auto" ${free ? '' : 'disabled'}>${tt('เลือกคันนี้', 'Choose this car')}</button></div></div>`; }).join('') || `<div class="empty">${tt('ไม่มีรถตามตัวกรอง', 'No cars match')}</div>`}</div></div>`;
-      el.innerHTML = html; bindSwitch();
-      $('#ft', el).onchange = e => { w.type = e.target.value; App.render(); };
-      $('#fb', el).onchange = e => { w.branchFilter = e.target.value; App.render(); };
-      $$('[data-pick]', el).forEach(b => b.onclick = () => {
-        w.plate = b.dataset.pick; w.branch = Store.car(w.plate).branch; w.step = 2; w.clicks = 0;
-        const first = this.carDays(w.plate).find(d => d.free);   // pre-fill the first free day
-        if (first) { const s = new Date(Math.max(first.a, Date.now() + HOUR)); s.setMinutes(0, 0, 0); if (s.getHours() < 9) s.setHours(10); w.start = s.getTime(); w.end = s.getTime() + DAY; }
-        App.render();
-      });
-      return;
-    }
-
-    if (carFirst && w.step === 2) {
-      const car = Store.car(w.plate), days = this.carDays(car.plate);
-      const inSel = d => d.a >= startOfDay(w.start).getTime() && d.a < w.end;
-      html += `<div class="grid g2"><div class="card"><div class="card-head"><h3>${esc(carName(car))} <span class="mono muted small">${esc(car.plate)}</span></h3><button class="btn btn-sm" data-back>← ${tt('เลือกรถใหม่', 'Choose again')}</button></div>
-          ${UI.carArt(car)}
-          <dl class="kv" style="margin-top:12px"><dt>${tt('สถานที่รับ-คืนรถ', 'Pick-up / return place')}</dt><dd>${esc(branchName(car.branch))}<div class="small muted">${esc(branchAddr(car.branch))}</div></dd>
-          <dt>${tt('อัตราค่าเช่า', 'Rate')}</dt><dd>${money(Store.rate(car.type).daily)} / ${tt('วัน', 'day')} · ${money(Store.rate(car.type).weekly)} / ${tt('สัปดาห์', 'week')}</dd></dl></div>
-        <div class="card"><h3 style="margin-bottom:4px">${tt('วันที่รถคันนี้ว่าง', 'Days this car is free')}</h3><p class="small muted" style="margin:0 0 10px">${tt('คลิกวันรับรถ แล้วคลิกวันคืนรถ หรือกรอกวันเวลาด้านล่าง', 'Click a pick-up day, then a return day, or type the times below')}</p>
-          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">${days.map(d => { const dt = new Date(d.a); return `<button type="button" class="btn btn-sm" data-day="${d.a}" ${d.free ? '' : 'disabled'} title="${fmtD(d.a)}" style="padding:6px 0;flex-direction:column;gap:0;${inSel(d) ? 'background:var(--accent);color:#fff;border-color:var(--accent)' : d.free ? '' : 'background:var(--danger-soft);color:var(--danger);text-decoration:line-through'}"><span class="small" style="font-weight:400">${dt.toLocaleDateString(I18N.lang === 'en' ? 'en-GB' : 'th-TH', { weekday: 'short' })}</span>${dt.getDate()}</button>`; }).join('')}</div>
-          <div class="row small muted" style="margin-top:8px;gap:14px"><span>■ <span style="color:var(--accent)">${tt('ที่เลือก', 'selected')}</span></span><span style="color:var(--danger)">${tt('ขีดฆ่า = ถูกจอง / ซ่อม', 'struck = booked / in repair')}</span></div>
-          <form id="f" class="form" style="margin-top:14px" novalidate><div class="form-alert"></div><div class="fields">
-            ${UI.field('start', 'วันเวลารับรถ', 'Pick-up date & time', `<input type="datetime-local" value="${toLocalInput(w.start)}">`, { req: true })}
-            ${UI.field('end', 'วันเวลาคืนรถ', 'Return date & time', `<input type="datetime-local" value="${toLocalInput(w.end)}">`, { req: true })}</div>
-            <div id="pp"></div>
-            <div class="row" style="justify-content:flex-end"><button class="btn btn-primary">${tt('ถัดไป', 'Next')} →</button></div></form></div></div>`;
-      el.innerHTML = html; bindSwitch();
-      $('[data-back]', el).onclick = () => { w.step = 1; w.plate = null; App.render(); };
-      const f = $('#f', el), sIn = $('[data-field=start] input', f), eIn = $('[data-field=end] input', f);
-      const preview = () => {
-        const s = new Date(sIn.value).getTime(), e = new Date(eIn.value).getTime(), box = $('#pp', f);
-        if (!(e > s)) { box.innerHTML = ''; return; }
-        const p = Logic.price(car.type, s, e), free = Logic.isFree(car.plate, s, e);
-        box.innerHTML = `<div class="alert ${free ? 'alert-ok' : 'alert-danger'} small">${free ? tt(`ว่างตลอดช่วงนี้ · ${p.days} วัน · ค่าเช่า ${money(p.total)}`, `Free for this period · ${p.days} days · ${money(p.total)}`) : tt('รถคันนี้ไม่ว่างในบางช่วงของเวลาที่เลือก', 'This car is booked during part of this period')}</div>`;
-      };
-      sIn.onchange = eIn.onchange = preview; preview();
-      $$('[data-day]', el).forEach(b => b.onclick = () => {
-        const day = +b.dataset.day, keepH = new Date(w.start);
-        const at = d => { const x = new Date(d); x.setHours(keepH.getHours(), keepH.getMinutes(), 0, 0); return Math.max(x.getTime(), Date.now() + HOUR - (Date.now() % HOUR)); };
-        if (w.clicks % 2 === 0 || day < startOfDay(w.start).getTime()) { w.start = at(day); w.end = w.start + DAY; w.clicks = 1; }
-        else { w.end = at(day); if (w.end <= w.start) w.end = w.start + DAY; w.clicks = 0; }
-        App.render();
-      });
-      f.onsubmit = e => {
-        e.preventDefault(); UI.clearErrors(f);
-        try {
-          UI.require(f, ['start', 'end']);
-          const start = new Date(sIn.value).getTime(), end = new Date(eIn.value).getTime();
-          Logic.validatePeriod(start, end);
-          if (!Logic.isFree(car.plate, start, end)) throw new AppError(tt('รถคันนี้ไม่ว่างในช่วงเวลาที่เลือก กรุณาเลือกวันอื่น', 'This car is not free for that period — choose other days'), 'end');
-          Object.assign(w, { start, end, step: 3 }); App.render();
-        } catch (err) { UI.showError(f, err); }
-      };
-      return;
-    }
-
     if (w.step === 1) {
       html += `<div class="card"><form class="form" id="f" novalidate><div class="form-alert"></div>
         <div class="fields">
@@ -116,7 +25,7 @@ const CustomerViews = {
           ${UI.field('type', 'ประเภทรถ', 'Car type', `<select><option value="">${tt('ทุกประเภท', 'All types')}</option>${TYPES.map(t => `<option value="${t.id}" ${t.id === w.type ? 'selected' : ''}>${esc(tt(t.th, t.en))}</option>`).join('')}</select>`)}
         </div>
         <div class="row" style="justify-content:flex-end"><button class="btn btn-primary">${tt('ค้นหารถว่าง', 'Search available cars')} →</button></div></form></div>`;
-      el.innerHTML = html; bindSwitch();
+      el.innerHTML = html;
       const f = $('#f', el);
       f.onsubmit = e => {
         e.preventDefault(); UI.clearErrors(f);
@@ -141,7 +50,7 @@ const CustomerViews = {
           <div class="price">${money(price.total)} <span class="small muted" style="font-weight:400">/ ${price.days} ${tt('วัน', 'days')}</span></div>
           <button class="btn btn-primary btn-sm" data-pick="${esc(car.plate)}" style="margin-top:auto">${tt('เลือกคันนี้', 'Choose this car')}</button></div></div>`).join('')}</div>`
         : `<div class="alert alert-warn">${tt('ไม่มีรถว่างตามเงื่อนไขนี้ ลองเปลี่ยนวันเวลา สาขา หรือประเภทรถ', 'No cars match. Try a different date, branch or type.')}</div>`}</div>`;
-      el.innerHTML = html; bindSwitch();
+      el.innerHTML = html;
       $('[data-back]', el).onclick = () => { w.step = 1; App.render(); };
       $$('[data-pick]', el).forEach(b => b.onclick = () => { w.plate = b.dataset.pick; w.step = 3; App.render(); });
       return;
@@ -164,15 +73,23 @@ const CustomerViews = {
           <div class="sum-line"><span>${tt('ค่ามัดจำ (ได้คืนเมื่อคืนรถไม่มีความเสียหาย)', 'Deposit (refunded if returned undamaged)')}</span><span class="mono">${money(p.deposit)}</span></div>
           <div class="sum-line total"><span>${tt('ยอดชำระวันนี้', 'Due today')}</span><span>${money(p.total + p.deposit)}</span></div>
           <form id="f" class="form" style="margin-top:14px" novalidate><div class="form-alert"></div>
+            ${!u.nationalId || !u.license ? `<div class="alert alert-info small">${tt('บัญชีของคุณยังไม่มีข้อมูลผู้เช่า กรุณากรอกเพื่อใช้ในสัญญาเช่า', 'Your account has no renter details yet. Please add them for the rental contract.')}</div>
+            <div class="fields">${UI.field('nid', 'เลขบัตรประชาชน', 'National ID', `<input inputmode="numeric" maxlength="13" value="${esc(u.nationalId || '')}">`, { req: true })}${UI.field('license', 'เลขใบขับขี่', 'Driving licence no.', `<input value="${esc(u.license || '')}">`, { req: true })}</div>` : ''}
             <div class="field" data-field="agree"><label class="check"><input type="checkbox"> <span>${tt(`ข้าพเจ้าตรวจสอบข้อมูลแล้ว และรับทราบเงื่อนไข: ยกเลิกฟรีก่อนรับรถ ${POLICY.cancelHours} ชม. · คืนช้าเกิน ${POLICY.lateGraceHours} ชม. มีค่าปรับ · ต้องชำระภายใน ${POLICY.holdMinutes} นาที`, `I have checked the details and accept the terms: free cancellation up to ${POLICY.cancelHours}h before pick-up · late return over ${POLICY.lateGraceHours}h is charged · payment within ${POLICY.holdMinutes} minutes`)}</span></label><span class="err"></span></div>
             <div class="row" style="justify-content:space-between"><button type="button" class="btn" data-back>← ${tt('ย้อนกลับ', 'Back')}</button><button class="btn btn-primary">${tt('ยืนยันและชำระเงิน', 'Confirm & pay')}</button></div>
           </form></div></div>`;
-      el.innerHTML = html; bindSwitch();
+      el.innerHTML = html;
       $('[data-back]', el).onclick = () => { w.step = 2; App.render(); };
       const f = $('#f', el);
       f.onsubmit = e => {
         e.preventDefault(); UI.clearErrors(f);
         try {
+          if ($('[data-field=nid]', f)) {   // staff renting for themselves: collect renter details once
+            UI.require(f, ['nid', 'license']);
+            const nid = $('[data-field=nid] input', f).value.trim();
+            if (!validThaiId(nid)) throw new AppError(tt('เลขบัตรประชาชนไม่ถูกต้อง (ต้องเป็น 13 หลักและผ่าน checksum)', 'Invalid national ID (13 digits with valid checksum)'), 'nid');
+            u.nationalId = nid; u.license = $('[data-field=license] input', f).value.trim(); Store.save();
+          }
           if (!$('[data-field=agree] input', f).checked) throw new AppError(tt('กรุณายืนยันว่าตรวจสอบข้อมูลแล้ว', 'Please confirm you have checked the details'), 'agree');
           const b = Logic.createBooking({ customerId: u.id, plate: w.plate, start: w.start, end: w.end });
           w.bookingId = b.id;
@@ -189,7 +106,7 @@ const CustomerViews = {
         <p class="muted">Booking ID <b class="mono">${esc(b.id)}</b> · ${tt('เลขที่ธุรกรรม', 'Transaction')} <span class="mono">${esc(b.txn || '-')}</span></p>
         <div class="alert alert-info" style="max-width:520px;margin:12px auto;text-align:left">${tt(`ระบบส่งสัญญาเช่ารถ ${b.contract.no} ไปที่กล่องข้อความของคุณแล้ว กรุณาเซ็นสัญญาก่อนวันรับรถ มิฉะนั้นพนักงานจะส่งมอบรถไม่ได้`, `Rental contract ${b.contract.no} has been sent to your inbox. Please sign it before pick-up, or staff cannot hand over the car.`)}</div>
         <div class="row" style="justify-content:center;margin-top:12px"><button class="btn btn-primary" data-sign>${tt('เซ็นสัญญาตอนนี้', 'Sign contract now')}</button><button class="btn" data-detail>${tt('ดูรายละเอียดการเช่า', 'View rental')}</button><button class="btn btn-ghost" data-new>${tt('จองคันใหม่', 'New booking')}</button></div></div>`;
-      el.innerHTML = html; bindSwitch();
+      el.innerHTML = html;
       $('[data-sign]', el).onclick = () => CustomerViews.contract(b.id);
       $('[data-detail]', el).onclick = () => { CustomerViews.resetWiz(); App.go('rentals'); CustomerViews.detail(b.id); };
       $('[data-new]', el).onclick = () => { CustomerViews.resetWiz(); App.render(); };

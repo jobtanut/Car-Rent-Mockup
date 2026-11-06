@@ -25,6 +25,21 @@ Double-click `index.html` (Chrome, Edge or Safari). If the data gets messy durin
 | Big Manager (ผู้บริหารระดับสูง) | `ceo` |
 | Deactivated account (unhappy-path testing) | `office9` |
 
+## Access by role
+
+It's one app for everyone. Every account signs in to the customer pages (Rent a car, My rentals, Inbox, Repair costs). Staff accounts also get a **Staff area** menu in the top-right that opens the employee pages, and higher roles inherit the areas of the roles below them.
+
+| Role | Staff area menu |
+|---|---|
+| Customer | none |
+| Office Employee | Office work |
+| Office Manager | Office work, Office management |
+| Mechanic Employee | Mechanic work (own jobs only) |
+| Mechanic Manager | Mechanic work (all jobs), Repair management |
+| Big Manager (CEO) | Company overview, Office work, Office management, Mechanic work, Repair management |
+
+A staff member who rents a car for themselves is asked once for their national ID and licence number, which go on the rental contract.
+
 Payment Service and the Maintenance Shop (อู่บำรุงรักษารถ) are external entities, so they are simulated as windows with a dark "external system (simulated)" banner.
 
 ## Test data
@@ -44,9 +59,8 @@ Payment Service and the Maintenance Shop (อู่บำรุงรักษ�
 ## User flows
 
 ```
-Customer       Register / sign in (1.1) → choose a booking mode:
-                 a) Pick-up first: date, time and branch (1.2) → only cars free for that period → choose a car
-                 b) Car first: choose a car → its branch + a 28-day calendar of free days → choose pick-up and return
+Customer       Register / sign in (1.1) → pick-up and return date, time and branch (1.2)
+               → only the cars free for that period → choose a car
                → review rent + deposit → confirm (1.3)
                → Payment Service: QR or card (1.4) → Booking ID + contract by email → sign the contract
                → view / edit / cancel (2.1–2.3) → pay the difference (2.4) → invoice · repair costs (3.4)
@@ -81,6 +95,19 @@ Big Manager    Company overview · revenue analysis (day/month/year, car type, b
 These FRs work in the prototype but have no supporting use case or data flow: C-06 deposit, C-09 sending the contract, C-15 invoice, C-17 refund on cancellation, C-18 signing the contract, C-19 deposit refund, OE-03 creating a rental (no use case), MM-04 total repair costs, MM-05 maintenance schedule, MM-07 approving a car as ready.
 
 Use cases with no FR: "ตรวจสอบค่าใช้จ่ายในการซ่อมรถ" (check repair costs, Customer) and "ดูอัตราการใช้งานของรถแต่ละคัน" (view utilisation per car, Mechanic Manager).
+
+### Created by inherited access
+
+The DFD as drawn gives each role only its own processes. Inherited access means these flows now exist in the prototype but not in the diagrams:
+
+| Role | New processes it reaches | Flows to add |
+|---|---|---|
+| Office Manager | 1.2, 1.3, 1.4, 2.1–2.6 | Copy every Office Employee flow (availability, create rental, edit, delete, hand-over, return) |
+| Mechanic Manager | 3.4 | Copy the Mechanic Employee flows (assigned cars, inspection, maintenance, progress, costs) |
+| Big Manager | 1.2–1.4, 2.1–2.6, 3.2–3.5 | All Office Employee, Office Manager, Mechanic Employee and Mechanic Manager flows |
+| All staff | 1.1–1.4, 2.1–2.4 as a renter | None if the staff member is drawn as the Customer entity; their ID and licence go to D1 like any customer |
+
+Either add these flows (and «extends»/generalisation links between the actors on the use case diagram), or note in the report that managers act as the lower role when they use those pages.
 
 ## File structure
 
