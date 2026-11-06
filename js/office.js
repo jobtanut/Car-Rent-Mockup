@@ -46,11 +46,11 @@ const StaffViews = {
         $('#res', el).innerHTML = `<div class="card"><div class="card-head"><h3>${tt('รายการรถที่ว่าง', 'Available cars')}: ${free.length} / ${cars.length}</h3>
           <button class="btn btn-sm btn-primary" id="mk" ${free.length ? '' : 'disabled'}>${tt('สร้างรายการเช่าจากช่วงเวลานี้', 'Create rental for this period')} →</button></div>
           ${UI.table([
-            { h: tt('ทะเบียนรถ', 'Plate'), v: c => `<span class="mono">${esc(c.plate)}</span>` }, { h: tt('ยี่ห้อรถ', 'Car'), v: c => esc(carName(c)) },
-            { h: tt('ประเภทรถ', 'Type'), v: c => esc(typeName(c.type)) }, { h: tt('สาขา', 'Branch'), v: c => esc(branchName(c.branch)) },
-            { h: tt('ค่าเช่า', 'Price'), cls: 'num', v: c => money(Logic.price(c.type, start, end).total) },
-            { h: tt('ช่วงเวลานี้', 'This period'), v: c => Logic.isFree(c.plate, start, end) ? badge('available') : c.status === 'maintenance' ? badge('maintenance') : `<span class="badge b-danger">${tt('ไม่ว่าง (มีการจอง)', 'Booked')}</span>` },
-          ], cars.sort((a, b) => Logic.isFree(b.plate, start, end) - Logic.isFree(a.plate, start, end)))}</div>`;
+          { h: tt('ทะเบียนรถ', 'Plate'), v: c => `<span class="mono">${esc(c.plate)}</span>` }, { h: tt('ยี่ห้อรถ', 'Car'), v: c => esc(carName(c)) },
+          { h: tt('ประเภทรถ', 'Type'), v: c => esc(typeName(c.type)) }, { h: tt('สาขา', 'Branch'), v: c => esc(branchName(c.branch)) },
+          { h: tt('ค่าเช่า', 'Price'), cls: 'num', v: c => money(Logic.price(c.type, start, end).total) },
+          { h: tt('ช่วงเวลานี้', 'This period'), v: c => Logic.isFree(c.plate, start, end) ? badge('available') : c.status === 'maintenance' ? badge('maintenance') : `<span class="badge b-danger">${tt('ไม่ว่าง (มีการจอง)', 'Booked')}</span>` },
+        ], cars.sort((a, b) => Logic.isFree(b.plate, start, end) - Logic.isFree(a.plate, start, end)))}</div>`;
         $('#mk', el).onclick = () => App.go('create', { start, end, branch, type });
       } catch (err) { UI.showError(f, err); $('#res', el).innerHTML = ''; }
     };
@@ -117,11 +117,13 @@ const StaffViews = {
         UI.require(f, ['start', 'end', 'plate']);
         const b = Logic.createBooking({ customerId: cust.id, plate: pSel.value, start: new Date(sIn.value).getTime(), end: new Date(eIn.value).getTime(), createdBy: App.user.id });
         UI.toast(tt(`สร้างรายการเช่า ${b.id} แล้ว — รับชำระเงิน`, `Rental ${b.id} created — take payment`), 'ok');
-        PaymentService.open({ bookingId: b.id, amount: b.total + b.deposit, holdUntil: b.holdUntil, lines: [[tt('ค่าเช่า', 'Rent'), b.total], [tt('ค่ามัดจำ', 'Deposit'), b.deposit]],
+        PaymentService.open({
+          bookingId: b.id, amount: b.total + b.deposit, holdUntil: b.holdUntil, lines: [[tt('ค่าเช่า', 'Rent'), b.total], [tt('ค่ามัดจำ', 'Deposit'), b.deposit]],
           onSuccess: r => Logic.confirmPayment(b.id, r),
           after: () => { App.go('bookings'); UI.confirm(tt('ให้ผู้เช่าเซ็นสัญญาที่เคาน์เตอร์?', 'Have the renter sign at the counter?'), `<p>Booking ID <b class="mono">${b.id}</b></p><p class="muted">${tt('ผู้เช่าต้องเซ็นสัญญาก่อนส่งมอบรถ', 'The renter must sign before hand-over')}</p>`, { okText: tt('เปิดสัญญา', 'Open contract') }).then(ok => ok && CustomerViews.contract(b.id)); },
           onTimeout: () => { Logic.expirePending(b.id); App.render(); },
-          onCancel: () => { UI.toast(tt(`ยังไม่ได้รับชำระ — ${b.id} สถานะรอชำระ`, `Not paid — ${b.id} awaiting payment`), 'warn'); App.go('bookings'); } });
+          onCancel: () => { UI.toast(tt(`ยังไม่ได้รับชำระ — ${b.id} สถานะรอชำระ`, `Not paid — ${b.id} awaiting payment`), 'warn'); App.go('bookings'); }
+        });
       } catch (err) { UI.showError(f, err); }
     };
   },
@@ -136,11 +138,11 @@ const StaffViews = {
         <select id="st" style="width:auto"><option value="">${tt('ทุกสถานะ', 'All statuses')}</option>${['pending_payment', 'confirmed', 'picked_up', 'returned', 'cancelled'].map(s => `<option value="${s}" ${s === st ? 'selected' : ''}>${esc(tt(STATUS[s][0], STATUS[s][1]))}</option>`).join('')}</select></div>
         <span class="small muted">${rows.length} ${tt('รายการ', 'rows')}</span></div>
         ${UI.table([
-          { h: 'Booking ID', v: b => `<span class="mono">${b.id}</span>` }, { h: tt('ผู้เช่า', 'Renter'), v: b => esc(fullName(Store.user(b.customerId))) },
-          { h: tt('ทะเบียนรถ', 'Plate'), v: b => `<span class="mono">${esc(b.plate)}</span>` }, { h: tt('รับรถ', 'Pick-up'), v: b => fmtDT(b.pickupAt) }, { h: tt('คืนรถ', 'Return'), v: b => fmtDT(b.returnAt) },
-          { h: tt('ยอดชำระ', 'Amount'), cls: 'num', v: b => money(b.total) }, { h: tt('สถานะ', 'Status'), v: b => badge(b.status) },
-          { h: '', cls: 'right nowrap', v: b => `<button class="btn btn-sm" data-v="${b.id}">${tt('ดู', 'View')}</button> ${b.status === 'confirmed' ? `<button class="btn btn-sm" data-e="${b.id}">${tt('แก้ไข', 'Edit')}</button>` : ''} ${['confirmed', 'pending_payment'].includes(b.status) ? `<button class="btn btn-sm btn-danger" data-x="${b.id}">${tt('ลบ', 'Delete')}</button>` : ''}` },
-        ], rows.slice(0, 120))}</div>`;
+        { h: 'Booking ID', v: b => `<span class="mono">${b.id}</span>` }, { h: tt('ผู้เช่า', 'Renter'), v: b => esc(fullName(Store.user(b.customerId))) },
+        { h: tt('ทะเบียนรถ', 'Plate'), v: b => `<span class="mono">${esc(b.plate)}</span>` }, { h: tt('รับรถ', 'Pick-up'), v: b => fmtDT(b.pickupAt) }, { h: tt('คืนรถ', 'Return'), v: b => fmtDT(b.returnAt) },
+        { h: tt('ยอดชำระ', 'Amount'), cls: 'num', v: b => money(b.total) }, { h: tt('สถานะ', 'Status'), v: b => badge(b.status) },
+        { h: '', cls: 'right nowrap', v: b => `<button class="btn btn-sm" data-v="${b.id}">${tt('ดู', 'View')}</button> ${b.status === 'confirmed' ? `<button class="btn btn-sm" data-e="${b.id}">${tt('แก้ไข', 'Edit')}</button>` : ''} ${['confirmed', 'pending_payment'].includes(b.status) ? `<button class="btn btn-sm btn-danger" data-x="${b.id}">${tt('ลบ', 'Delete')}</button>` : ''}` },
+      ], rows.slice(0, 120))}</div>`;
     const go = () => App.go('bookings', { q: $('#q', el).value.trim(), status: $('#st', el).value });
     $('#q', el).onkeydown = e => { if (e.key === 'Enter') go(); }; $('#st', el).onchange = go;
     $$('[data-v]', el).forEach(b => b.onclick = () => this.detail(b.dataset.v));

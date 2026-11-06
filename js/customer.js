@@ -49,7 +49,7 @@ const CustomerViews = {
           <div class="small muted">${money(Store.rate(car.type).daily)} / ${tt('วัน', 'day')}</div>
           <div class="price">${money(price.total)} <span class="small muted" style="font-weight:400">/ ${price.days} ${tt('วัน', 'days')}</span></div>
           <button class="btn btn-primary btn-sm" data-pick="${esc(car.plate)}" style="margin-top:auto">${tt('เลือกคันนี้', 'Choose this car')}</button></div></div>`).join('')}</div>`
-        : `<div class="alert alert-warn">${tt('ไม่มีรถว่างตามเงื่อนไขนี้ ลองเปลี่ยนวันเวลา สาขา หรือประเภทรถ', 'No cars match. Try a different date, branch or type.')}</div>`}</div>`;
+          : `<div class="alert alert-warn">${tt('ไม่มีรถว่างตามเงื่อนไขนี้ ลองเปลี่ยนวันเวลา สาขา หรือประเภทรถ', 'No cars match. Try a different date, branch or type.')}</div>`}</div>`;
       el.innerHTML = html;
       $('[data-back]', el).onclick = () => { w.step = 1; App.render(); };
       $$('[data-pick]', el).forEach(b => b.onclick = () => { w.plate = b.dataset.pick; w.step = 3; App.render(); });
@@ -134,19 +134,19 @@ const CustomerViews = {
       + `<div class="card"><div class="card-head"><div class="seg">${[['current', 'ปัจจุบัน', 'Current'], ['past', 'ที่ผ่านมา', 'Past'], ['all', 'ทั้งหมด', 'All']].map(([k, th, en]) => `<button class="${filter === k ? 'on' : ''}" data-f="${k}">${tt(th, en)}</button>`).join('')}</div>
         <div class="row"><input id="q" placeholder="${tt('ค้นหา Booking ID', 'Search Booking ID')}" style="width:200px"><button class="btn btn-sm" id="qb">${tt('ตรวจสอบ', 'Check')}</button></div></div>
         ${UI.table([
-          { h: 'Booking ID', v: b => `<span class="mono">${b.id}</span>` },
-          { h: tt('รถ', 'Car'), v: b => `${esc(carName(Store.car(b.plate)))}<div class="small muted mono">${esc(b.plate)}</div>` },
-          { h: tt('รับรถ', 'Pick-up'), v: b => `${fmtDT(b.pickupAt)}<div class="small muted">${esc(branchName(b.branch))}</div>` },
-          { h: tt('คืนรถ', 'Return'), v: b => fmtDT(b.returnAt) },
-          { h: tt('ยอดชำระ', 'Amount'), cls: 'num', v: b => money(b.total) },
-          { h: tt('สถานะการเช่า', 'Status'), v: b => badge(b.status) + (b.status === 'confirmed' && b.contract && !b.contract.signed ? `<div style="margin-top:4px"><button class="btn btn-sm" data-sign="${b.id}" title="${tt('คลิกเพื่ออ่านและเซ็นสัญญา', 'Click to read and sign the contract')}" style="color:var(--warn);border-color:#f9dbaf;background:var(--warn-soft)">✍ ${tt('ยังไม่เซ็นสัญญา · เซ็นเลย', 'Contract unsigned · Sign now')}</button></div>` : '') },
-          { h: '', cls: 'right', v: b => `<button class="btn btn-sm" data-d="${b.id}">${tt('รายละเอียด', 'Details')}</button>` },
-        ], shown, 'ยังไม่มีการเช่าในหมวดนี้', 'No rentals here yet')}</div>`;
-      $$('[data-f]', el).forEach(b => b.onclick = () => App.go('rentals', { filter: b.dataset.f }));
-      $$('[data-d]', el).forEach(b => b.onclick = () => this.detail(b.dataset.d));
-      $$('[data-sign]', el).forEach(b => b.onclick = () => this.contract(b.dataset.sign));
-      const look = () => { const id = $('#q', el).value.trim().toUpperCase(); const b = Store.rental(id); if (!b || b.customerId !== App.user.id) UI.toast(tt('ไม่พบ Booking ID นี้ในบัญชีของคุณ', 'Booking ID not found in your account'), 'err'); else this.detail(b.id); };
-      $('#qb', el).onclick = look; $('#q', el).onkeydown = e => { if (e.key === 'Enter') look(); };
+        { h: 'Booking ID', v: b => `<span class="mono">${b.id}</span>` },
+        { h: tt('รถ', 'Car'), v: b => `${esc(carName(Store.car(b.plate)))}<div class="small muted mono">${esc(b.plate)}</div>` },
+        { h: tt('รับรถ', 'Pick-up'), v: b => `${fmtDT(b.pickupAt)}<div class="small muted">${esc(branchName(b.branch))}</div>` },
+        { h: tt('คืนรถ', 'Return'), v: b => fmtDT(b.returnAt) },
+        { h: tt('ยอดชำระ', 'Amount'), cls: 'num', v: b => money(b.total) },
+        { h: tt('สถานะการเช่า', 'Status'), v: b => badge(b.status) + (b.status === 'confirmed' && b.contract && !b.contract.signed ? `<div style="margin-top:4px"><button class="btn btn-sm" data-sign="${b.id}" title="${tt('คลิกเพื่ออ่านและเซ็นสัญญา', 'Click to read and sign the contract')}" style="color:var(--warn);border-color:#f9dbaf;background:var(--warn-soft)">✍ ${tt('ยังไม่เซ็นสัญญา · เซ็นเลย', 'Contract unsigned · Sign now')}</button></div>` : '') },
+        { h: '', cls: 'right', v: b => `<button class="btn btn-sm" data-d="${b.id}">${tt('รายละเอียด', 'Details')}</button>` },
+      ], shown, 'ยังไม่มีการเช่าในหมวดนี้', 'No rentals here yet')}</div>`;
+    $$('[data-f]', el).forEach(b => b.onclick = () => App.go('rentals', { filter: b.dataset.f }));
+    $$('[data-d]', el).forEach(b => b.onclick = () => this.detail(b.dataset.d));
+    $$('[data-sign]', el).forEach(b => b.onclick = () => this.contract(b.dataset.sign));
+    const look = () => { const id = $('#q', el).value.trim().toUpperCase(); const b = Store.rental(id); if (!b || b.customerId !== App.user.id) UI.toast(tt('ไม่พบ Booking ID นี้ในบัญชีของคุณ', 'Booking ID not found in your account'), 'err'); else this.detail(b.id); };
+    $('#qb', el).onclick = look; $('#q', el).onkeydown = e => { if (e.key === 'Enter') look(); };
   },
 
   detail(id) {
@@ -239,9 +239,9 @@ const CustomerViews = {
         <div class="small">${tt('ผู้เช่า', 'Bill to')}: <b>${esc(fullName(c))}</b> · ${esc(c.email || '')} · ${esc(c.phone || '')}</div>
         <div class="small">Booking ID ${b.id} · ${esc(carName(car))} (${esc(car.plate)}) · ${fmtDT(b.pickupAt)} – ${fmtDT(b.returnAt)}</div>
         <div style="margin-top:12px">${UI.table([
-          { h: tt('วันที่', 'Date'), v: p => fmtDT(p.at) }, { h: tt('รายการ', 'Item'), v: p => esc(payKind(p.kind)) },
-          { h: tt('ช่องทาง', 'Method'), v: p => esc(methodName(p.method)) }, { h: tt('เลขที่ธุรกรรม', 'Txn'), v: p => `<span class="mono small">${p.txn}</span>` },
-          { h: tt('จำนวนเงิน', 'Amount'), cls: 'num', v: p => money(p.amount) }], pays)}</div>
+      { h: tt('วันที่', 'Date'), v: p => fmtDT(p.at) }, { h: tt('รายการ', 'Item'), v: p => esc(payKind(p.kind)) },
+      { h: tt('ช่องทาง', 'Method'), v: p => esc(methodName(p.method)) }, { h: tt('เลขที่ธุรกรรม', 'Txn'), v: p => `<span class="mono small">${p.txn}</span>` },
+      { h: tt('จำนวนเงิน', 'Amount'), cls: 'num', v: p => money(p.amount) }], pays)}</div>
         <div style="max-width:320px;margin-left:auto;margin-top:10px">
           <div class="sum-line"><span>${tt('ค่าบริการสุทธิ', 'Net charges')}</span><span class="mono">${money(charged)}</span></div>
           <div class="sum-line"><span>${tt('ภาษีมูลค่าเพิ่ม 7% (รวมในราคา)', 'VAT 7% (included)')}</span><span class="mono">${money(charged * 7 / 107)}</span></div>
@@ -288,8 +288,10 @@ const CustomerViews = {
       const finish = method => { try { const r = Logic.applyEdit(b.id, changes, method); UI.toast(tt(`แก้ไขการเช่าสำเร็จ (ส่วนต่าง ${money(r.diff)})`, `Rental updated (difference ${money(r.diff)})`), 'ok'); App.render(); return r.txn; } catch (err) { UI.toast(err.message, 'err'); throw err; } };
       m.close(true);
       if (owe > 0) {
-        PaymentService.open({ bookingId: b.id, amount: owe, lines: [[tt('ส่วนต่างค่าเช่า', 'Rent difference'), pv.diff], ...(pv.depositDiff ? [[tt('ส่วนต่างค่ามัดจำ', 'Deposit difference'), pv.depositDiff]] : [])],
-          onSuccess: r => finish(r.method), onCancel: () => UI.toast(tt('ยังไม่ได้ชำระส่วนต่าง การแก้ไขยังไม่ถูกบันทึก', 'Difference not paid — change not saved'), 'warn') });
+        PaymentService.open({
+          bookingId: b.id, amount: owe, lines: [[tt('ส่วนต่างค่าเช่า', 'Rent difference'), pv.diff], ...(pv.depositDiff ? [[tt('ส่วนต่างค่ามัดจำ', 'Deposit difference'), pv.depositDiff]] : [])],
+          onSuccess: r => finish(r.method), onCancel: () => UI.toast(tt('ยังไม่ได้ชำระส่วนต่าง การแก้ไขยังไม่ถูกบันทึก', 'Difference not paid — change not saved'), 'warn')
+        });
       } else finish('refund');
     };
   },

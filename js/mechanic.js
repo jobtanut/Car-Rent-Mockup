@@ -112,7 +112,7 @@ const MechViews = {
     el.innerHTML = UI.pageHead('บันทึกข้อมูลการจัดการรถ', 'Record car work', 'เลือกรถที่ต้องทำงาน แล้วบันทึกผลการตรวจสอบและข้อมูลการบำรุงรักษา', 'Choose a car that needs work, then record inspection results and maintenance', ['ME-03', 'ME-04'], ['3.4'])
       + `<div class="card"><form id="sf" class="form" novalidate><div class="form-alert"></div>
         ${todo.length ? UI.field('plate', 'รถที่ต้องทำงาน', 'Car needing work', `<select><option value="">${tt('— เลือกรถ —', '— Select a car —')}</option>${todo.map(x => `<option value="${esc(x.plate)}" ${x.plate === p.plate ? 'selected' : ''}>${esc(x.plate)} · ${esc(x.label)}</option>`).join('')}</select>`, { req: true, hint: tt(`${todo.length} คันที่มีงานมอบหมายให้คุณ`, `${todo.length} car(s) with work assigned to you`) })
-          : `<div class="alert alert-info">${tt('ไม่มีรถที่ต้องทำงานในตอนนี้', 'No cars need work from you right now')}</div>`}
+        : `<div class="alert alert-info">${tt('ไม่มีรถที่ต้องทำงานในตอนนี้', 'No cars need work from you right now')}</div>`}
         </form></div><div id="work"></div>`;
     const sf = $('#sf', el), sel = $('[data-field=plate] select', sf);
     const find = () => {
@@ -143,7 +143,7 @@ const MechViews = {
         ${UI.field('note', 'สรุปผลการตรวจสภาพรถ', 'Inspection summary', `<textarea>${esc(j.inspection ? j.inspection.note : '')}</textarea>`, { req: true })}
         ${UI.field('carStatus', 'สถานะของรถ', 'Car status', `<select><option value="maintenance">${tt('ยังต้องซ่อม / ไม่พร้อมใช้งาน', 'Still needs work / not ready')}</option><option value="ready">${tt('ตรวจผ่าน รอหัวหน้าช่างอนุมัติ', 'Passed, awaiting manager approval')}</option></select>`, { req: true })}
         <div class="row" style="justify-content:flex-end"><button class="btn btn-primary">${tt('ยืนยันการบันทึก', 'Confirm & save')}</button></div></form>`
-      : `<form id="mf" class="form" novalidate><div class="form-alert"></div><div class="fields">
+        : `<form id="mf" class="form" novalidate><div class="form-alert"></div><div class="fields">
         ${UI.field('work', 'งานที่ทำ', 'Work performed', '<textarea></textarea>', { req: true, cls: 'span2' })}
         ${UI.field('parts', 'อะไหล่ที่ใช้', 'Parts used', '<input placeholder="-">')}
         ${UI.field('cost', 'ค่าใช้จ่ายการบำรุงรักษา (บาท)', 'Maintenance cost (THB)', '<input type="number" min="0" step="1">', { req: true })}

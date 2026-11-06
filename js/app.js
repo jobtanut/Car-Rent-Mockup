@@ -43,7 +43,7 @@ const App = {
   init() {
     Store.load();
     document.documentElement.lang = I18N.lang;
-    let s = null; try { s = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); } catch (e) {}
+    let s = null; try { s = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); } catch (e) { }
     if (s && Store.user(s.id) && Store.user(s.id).status === 'active') {
       this.user = Store.user(s.id); this.screen = 'app';
       this.area = this.canUse(s.area) ? s.area : 'customer';
@@ -53,7 +53,7 @@ const App = {
   },
   canUse(area) { return !!(this.user && area && (ACCESS[this.user.role] || []).includes(area)); },
   staffAreas() { return this.user ? (ACCESS[this.user.role] || []).filter(a => a !== 'customer') : []; },
-  saveSession() { try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ id: this.user.id, area: this.area, view: this.view })); } catch (e) {} },
+  saveSession() { try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ id: this.user.id, area: this.area, view: this.view })); } catch (e) { } },
   go(view, params = {}) { this.view = view; this.params = params; this.saveSession(); this.render(); window.scrollTo(0, 0); },
   enter(area, view, params = {}) {
     if (!this.canUse(area)) { UI.toast(tt('คุณไม่มีสิทธิ์เข้าถึงส่วนนี้', 'You do not have access to this area'), 'err'); return; }
@@ -65,7 +65,7 @@ const App = {
     if (this.user) this.enter('customer');
     else { this.screen = 'login'; this.render(); window.scrollTo(0, 0); }
   },
-  logout() { this.user = null; this.area = 'customer'; this.screen = 'login'; try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {} CustomerViews.wiz = null; this.render(); },
+  logout() { this.user = null; this.area = 'customer'; this.screen = 'login'; try { sessionStorage.removeItem(SESSION_KEY); } catch (e) { } CustomerViews.wiz = null; this.render(); },
   async resetData() {
     if (!(await UI.confirm(tt('รีเซ็ตข้อมูลตัวอย่าง?', 'Reset demo data?'), `<p>${tt('ข้อมูลทั้งหมดที่สร้างหรือแก้ไขจะถูกลบ และโหลดข้อมูลตัวอย่างชุดเดิมกลับมา', 'Everything you created or changed is wiped and the original demo data is reloaded.')}</p>`, { danger: true, okText: tt('รีเซ็ต', 'Reset') }))) return;
     Store.reset(); CustomerViews.wiz = null;
