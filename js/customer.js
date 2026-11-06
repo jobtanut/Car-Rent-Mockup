@@ -139,11 +139,12 @@ const CustomerViews = {
           { h: tt('รับรถ', 'Pick-up'), v: b => `${fmtDT(b.pickupAt)}<div class="small muted">${esc(branchName(b.branch))}</div>` },
           { h: tt('คืนรถ', 'Return'), v: b => fmtDT(b.returnAt) },
           { h: tt('ยอดชำระ', 'Amount'), cls: 'num', v: b => money(b.total) },
-          { h: tt('สถานะการเช่า', 'Status'), v: b => badge(b.status) + (b.status === 'confirmed' && b.contract && !b.contract.signed ? `<div class="small" style="color:var(--warn);margin-top:2px">${tt('ยังไม่เซ็นสัญญา', 'Contract unsigned')}</div>` : '') },
+          { h: tt('สถานะการเช่า', 'Status'), v: b => badge(b.status) + (b.status === 'confirmed' && b.contract && !b.contract.signed ? `<div style="margin-top:4px"><button class="btn btn-sm" data-sign="${b.id}" title="${tt('คลิกเพื่ออ่านและเซ็นสัญญา', 'Click to read and sign the contract')}" style="color:var(--warn);border-color:#f9dbaf;background:var(--warn-soft)">✍ ${tt('ยังไม่เซ็นสัญญา · เซ็นเลย', 'Contract unsigned · Sign now')}</button></div>` : '') },
           { h: '', cls: 'right', v: b => `<button class="btn btn-sm" data-d="${b.id}">${tt('รายละเอียด', 'Details')}</button>` },
         ], shown, 'ยังไม่มีการเช่าในหมวดนี้', 'No rentals here yet')}</div>`;
       $$('[data-f]', el).forEach(b => b.onclick = () => App.go('rentals', { filter: b.dataset.f }));
       $$('[data-d]', el).forEach(b => b.onclick = () => this.detail(b.dataset.d));
+      $$('[data-sign]', el).forEach(b => b.onclick = () => this.contract(b.dataset.sign));
       const look = () => { const id = $('#q', el).value.trim().toUpperCase(); const b = Store.rental(id); if (!b || b.customerId !== App.user.id) UI.toast(tt('ไม่พบ Booking ID นี้ในบัญชีของคุณ', 'Booking ID not found in your account'), 'err'); else this.detail(b.id); };
       $('#qb', el).onclick = look; $('#q', el).onkeydown = e => { if (e.key === 'Enter') look(); };
   },
