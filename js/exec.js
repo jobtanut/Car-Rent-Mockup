@@ -86,14 +86,22 @@ const ExecViews = {
   },
 
   REPORTS: {
-    rentals: { th: 'รายงานการเช่ารถ', en: 'Rental report', cols: () => [['Booking ID', 'Booking ID'], ['ผู้เช่า', 'Renter'], ['ทะเบียนรถ', 'Plate'], ['ประเภทรถ', 'Type'], ['สาขา', 'Branch'], ['วันเวลารับรถ', 'Pick-up'], ['วันเวลาคืนรถ', 'Return'], ['ยอดชำระ', 'Amount'], ['ค่าปรับ', 'Late fee'], ['สถานะ', 'Status']],
-      rows: (a, z) => Store.db.rentals.filter(b => b.pickupAt >= a && b.pickupAt <= z).sort((x, y) => x.pickupAt - y.pickupAt).map(b => [b.id, fullName(Store.user(b.customerId)), b.plate, typeName(b.type), branchName(b.branch), fmtDT(b.pickupAt), fmtDT(b.returnAt), b.total, b.lateFee, tt(STATUS[b.status][0], STATUS[b.status][1])]) },
-    repairs: { th: 'รายงานการซ่อมรถ', en: 'Repair report', cols: () => [['งาน', 'Job'], ['ทะเบียนรถ', 'Plate'], ['รายการซ่อม', 'Repair'], ['ช่าง', 'Mechanic'], ['ซ่อมที่', 'Where'], ['ค่าซ่อม', 'Cost'], ['สถานะ', 'Status'], ['วันที่', 'Date']],
-      rows: (a, z) => Store.db.jobs.filter(j => { const t = j.approvedAt || j.assignedAt || 0; return t >= a && t <= z; }).map(j => [j.id, j.plate, j.damage, j.assignedTo ? fullName(Store.user(j.assignedTo)) : '-', j.mode === 'shop' ? tt('อู่', 'Shop') : tt('ภายใน', 'In-house'), Logic.jobCost(j), tt(STATUS[j.status][0], STATUS[j.status][1]), fmtD(j.approvedAt || j.assignedAt)]) },
-    payments: { th: 'รายงานการชำระเงิน', en: 'Payment report', cols: () => [['เลขที่ธุรกรรม', 'Txn'], ['Booking ID', 'Booking ID'], ['รายการ', 'Kind'], ['ช่องทาง', 'Method'], ['วันที่', 'Date'], ['จำนวนเงิน', 'Amount']],
-      rows: (a, z) => Store.db.payments.filter(p => p.at >= a && p.at <= z).sort((x, y) => x.at - y.at).map(p => [p.txn, p.bookingId, payKind(p.kind), methodName(p.method), fmtDT(p.at), p.amount]) },
-    customers: { th: 'รายงานลูกค้า', en: 'Customer report', cols: () => [['รหัสลูกค้า', 'Customer ID'], ['ชื่อ-นามสกุล', 'Name'], ['อีเมล', 'Email'], ['วันที่สมัคร', 'Joined'], ['จำนวนการเช่า', 'Rentals'], ['ยอดใช้จ่ายรวม', 'Total spend']],
-      rows: (a, z) => Store.db.users.filter(u => u.role === 'customer' && u.createdAt <= z).map(u => { const ids = new Set(Store.db.rentals.filter(b => b.customerId === u.id).map(b => b.id)); return [u.id, fullName(u), u.email || '-', fmtD(u.createdAt), ids.size, Logic.revenue(p => ids.has(p.bookingId) && p.at >= a && p.at <= z)]; }) },
+    rentals: {
+      th: 'รายงานการเช่ารถ', en: 'Rental report', cols: () => [['Booking ID', 'Booking ID'], ['ผู้เช่า', 'Renter'], ['ทะเบียนรถ', 'Plate'], ['ประเภทรถ', 'Type'], ['สาขา', 'Branch'], ['วันเวลารับรถ', 'Pick-up'], ['วันเวลาคืนรถ', 'Return'], ['ยอดชำระ', 'Amount'], ['ค่าปรับ', 'Late fee'], ['สถานะ', 'Status']],
+      rows: (a, z) => Store.db.rentals.filter(b => b.pickupAt >= a && b.pickupAt <= z).sort((x, y) => x.pickupAt - y.pickupAt).map(b => [b.id, fullName(Store.user(b.customerId)), b.plate, typeName(b.type), branchName(b.branch), fmtDT(b.pickupAt), fmtDT(b.returnAt), b.total, b.lateFee, tt(STATUS[b.status][0], STATUS[b.status][1])])
+    },
+    repairs: {
+      th: 'รายงานการซ่อมรถ', en: 'Repair report', cols: () => [['งาน', 'Job'], ['ทะเบียนรถ', 'Plate'], ['รายการซ่อม', 'Repair'], ['ช่าง', 'Mechanic'], ['ซ่อมที่', 'Where'], ['ค่าซ่อม', 'Cost'], ['สถานะ', 'Status'], ['วันที่', 'Date']],
+      rows: (a, z) => Store.db.jobs.filter(j => { const t = j.approvedAt || j.assignedAt || 0; return t >= a && t <= z; }).map(j => [j.id, j.plate, j.damage, j.assignedTo ? fullName(Store.user(j.assignedTo)) : '-', j.mode === 'shop' ? tt('อู่', 'Shop') : tt('ภายใน', 'In-house'), Logic.jobCost(j), tt(STATUS[j.status][0], STATUS[j.status][1]), fmtD(j.approvedAt || j.assignedAt)])
+    },
+    payments: {
+      th: 'รายงานการชำระเงิน', en: 'Payment report', cols: () => [['เลขที่ธุรกรรม', 'Txn'], ['Booking ID', 'Booking ID'], ['รายการ', 'Kind'], ['ช่องทาง', 'Method'], ['วันที่', 'Date'], ['จำนวนเงิน', 'Amount']],
+      rows: (a, z) => Store.db.payments.filter(p => p.at >= a && p.at <= z).sort((x, y) => x.at - y.at).map(p => [p.txn, p.bookingId, payKind(p.kind), methodName(p.method), fmtDT(p.at), p.amount])
+    },
+    customers: {
+      th: 'รายงานลูกค้า', en: 'Customer report', cols: () => [['รหัสลูกค้า', 'Customer ID'], ['ชื่อ-นามสกุล', 'Name'], ['อีเมล', 'Email'], ['วันที่สมัคร', 'Joined'], ['จำนวนการเช่า', 'Rentals'], ['ยอดใช้จ่ายรวม', 'Total spend']],
+      rows: (a, z) => Store.db.users.filter(u => u.role === 'customer' && u.createdAt <= z).map(u => { const ids = new Set(Store.db.rentals.filter(b => b.customerId === u.id).map(b => b.id)); return [u.id, fullName(u), u.email || '-', fmtD(u.createdAt), ids.size, Logic.revenue(p => ids.has(p.bookingId) && p.at >= a && p.at <= z)]; })
+    },
   },
   reports(el) {
     const p = App.params, kind = p.kind || 'rentals';
@@ -128,7 +136,7 @@ const ExecViews = {
         else UI.printEl($('#rep', el));
       } catch (err) { UI.showError(f, err); }
     };
-    try { show(build()); } catch (e) {}
+    try { show(build()); } catch (e) { }
   },
 };
 

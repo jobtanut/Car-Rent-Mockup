@@ -9,7 +9,7 @@ const I18N = { lang: (() => { try { return localStorage.getItem('crms_lang') || 
 function tt(th, en) { return I18N.lang === 'en' ? (en ?? th) : th; }
 function setLang(l) {
   I18N.lang = l;
-  try { localStorage.setItem('crms_lang', l); } catch (e) {}
+  try { localStorage.setItem('crms_lang', l); } catch (e) { }
   document.documentElement.lang = l;
   App.render();
 }
@@ -209,12 +209,12 @@ const Store = {
   db: null,
   load() {
     let raw = null;
-    try { raw = localStorage.getItem(DB_KEY); } catch (e) {}
+    try { raw = localStorage.getItem(DB_KEY); } catch (e) { }
     if (raw) { try { this.db = JSON.parse(raw); } catch (e) { this.db = null; } }
     if (!this.db || this.db.version !== 1) { this.db = Seed.build(); this.save(); }
     Logic.housekeeping();
   },
-  save() { try { localStorage.setItem(DB_KEY, JSON.stringify(this.db)); } catch (e) {} },
+  save() { try { localStorage.setItem(DB_KEY, JSON.stringify(this.db)); } catch (e) { } },
   reset() { this.db = Seed.build(); this.save(); },
   next(key, prefix) { return prefix + (++this.db.counters[key]); },
   user(id) { return this.db.users.find(u => u.id === id); },
