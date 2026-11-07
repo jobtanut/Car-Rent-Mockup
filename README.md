@@ -114,6 +114,28 @@ The DFD as drawn gives each role only its own processes. Inherited access means 
 
 Either add these flows (and «extends»/generalisation links between the actors on the use case diagram), or note in the report that managers act as the lower role when they use those pages.
 
+## Database (MySQL)
+
+The prototype keeps its data in the browser, but `database/` has the same data stores as a MySQL 8 / MariaDB schema, seeded with the prototype's demo data.
+
+```
+mysql --default-character-set=utf8mb4 -u root -p < database/01-d2-cars.sql
+mysql --default-character-set=utf8mb4 -u root -p < database/02-d1-d3-d6.sql
+```
+
+Load them in that order (or import both in phpMyAdmin). Keep the client on utf8mb4, or Thai text shows as "???". Every demo account's password is `pass1234`, stored as SHA-256 for the demo only.
+
+| DFD data store | Tables |
+|---|---|
+| D1 ผู้ใช้ | `users` |
+| D2 รถ | `cars`, with lookup tables `branches` and `car_types` |
+| D3 อัตราค่าเช่า | `rates` |
+| D4 การเช่า | `rentals` (contract, hand-over and return are columns) |
+| D5 การชำระเงิน | `payments` (refunds are negative amounts) |
+| D6 การซ่อมบำรุง | `maintenance_jobs`, `inspection_items`, `maintenance_logs`, `job_progress` |
+
+Views: `v_fleet_status`, `v_car_service_due` (maintenance schedule), `v_rental_detail`, `v_daily_revenue`, `v_repair_cost_per_car`.
+
 ## File structure
 
 | File | Contents |
@@ -127,3 +149,5 @@ Either add these flows (and «extends»/generalisation links between the actors 
 | `js/mechanic.js` | Mechanic and Mechanic Manager screens, including the simulated Maintenance Shop |
 | `js/exec.js` | Big Manager screens and the FR map |
 | `js/app.js` | Sign-in, registration and role-based menus |
+| `database/01-d2-cars.sql` | MySQL schema and demo data for D2 รถ (cars, branches, car types) |
+| `database/02-d1-d3-d6.sql` | MySQL schema and demo data for D1, D3, D4, D5 and D6 |
