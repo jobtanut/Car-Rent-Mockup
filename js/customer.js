@@ -73,8 +73,11 @@ const CustomerViews = {
           <div class="sum-line"><span>${tt('ค่ามัดจำ (ได้คืนเมื่อคืนรถไม่มีความเสียหาย)', 'Deposit (refunded if returned undamaged)')}</span><span class="mono">${money(p.deposit)}</span></div>
           <div class="sum-line total"><span>${tt('ยอดชำระวันนี้', 'Due today')}</span><span>${money(p.total + p.deposit)}</span></div>
           <form id="f" class="form" style="margin-top:14px" novalidate><div class="form-alert"></div>
-            ${!u.nationalId || !u.license ? `<div class="alert alert-info small">${tt('บัญชีของคุณยังไม่มีข้อมูลผู้เช่า กรุณากรอกเพื่อใช้ในสัญญาเช่า', 'Your account has no renter details yet. Please add them for the rental contract.')}</div>
-            <div class="fields">${UI.field('nid', 'เลขบัตรประชาชน', 'National ID', `<input inputmode="numeric" maxlength="13" value="${esc(u.nationalId || '')}">`, { req: true })}${UI.field('license', 'เลขใบขับขี่', 'Driving licence no.', `<input value="${esc(u.license || '')}">`, { req: true })}</div>` : ''}
+            ${!u.nationalId || !validLicence(u.license) ? `<div class="alert alert-info small">${tt('บัญชีของคุณยังไม่มีข้อมูลผู้เช่า กรุณากรอกเพื่อใช้ในสัญญาเช่า', 'Your account has no renter details yet. Please add them for the rental contract.')}</div>
+            <div class="fields">${UI.field('nid', 'เลขบัตรประชาชน', 'National ID', `<input inputmode="numeric" maxlength="13" value="${esc(u.nationalId || '')}">`, { req: true })}${UI.field('license', 'เลขใบขับขี่', 'Driving licence no.', `<input inputmode="numeric" maxlength="17" placeholder="6100012345678" value="${esc(u.license || '')}">`, { req: true, hint: tt('ตัวเลข 13 หลัก เช่น 6100012345678', '13 digits, e.g. 6100012345678') })}</div>`
+            : `<div class="card" style="box-shadow:none;padding:12px 14px"><div class="lbl" style="margin-bottom:6px">${tt('ข้อมูลผู้เช่าที่จะใช้ในสัญญา', 'Renter details for the contract')}</div>
+              <dl class="kv"><dt>${tt('เลขบัตรประชาชน', 'National ID')}</dt><dd class="mono">${esc(String(u.nationalId).replace(/^(\d)(\d{4})(\d{5})(\d{2})(\d)$/, '$1-$2-$3-$4-$5'))}</dd>
+              <dt>${tt('เลขใบขับขี่', 'Driving licence no.')}</dt><dd class="mono">${esc(u.license)}</dd></dl></div>`}
             <div class="field" data-field="agree"><label class="check"><input type="checkbox"> <span>${tt(`ข้าพเจ้าตรวจสอบข้อมูลแล้ว และรับทราบเงื่อนไข: ยกเลิกฟรีก่อนรับรถ ${POLICY.cancelHours} ชม. · คืนช้าเกิน ${POLICY.lateGraceHours} ชม. มีค่าปรับ · ต้องชำระภายใน ${POLICY.holdMinutes} นาที`, `I have checked the details and accept the terms: free cancellation up to ${POLICY.cancelHours}h before pick-up · late return over ${POLICY.lateGraceHours}h is charged · payment within ${POLICY.holdMinutes} minutes`)}</span></label><span class="err"></span></div>
             <div class="row" style="justify-content:space-between"><button type="button" class="btn" data-back>← ${tt('ย้อนกลับ', 'Back')}</button><button class="btn btn-primary">${tt('ยืนยันและชำระเงิน', 'Confirm & pay')}</button></div>
           </form></div></div>`;
@@ -88,7 +91,8 @@ const CustomerViews = {
             UI.require(f, ['nid', 'license']);
             const nid = $('[data-field=nid] input', f).value.trim();
             if (!validThaiId(nid)) throw new AppError(tt('เลขบัตรประชาชนไม่ถูกต้อง (ต้องเป็น 13 หลักและผ่าน checksum)', 'Invalid national ID (13 digits with valid checksum)'), 'nid');
-            u.nationalId = nid; u.license = $('[data-field=license] input', f).value.trim(); Store.save();
+            if (!validLicence($('[data-field=license] input', f).value)) throw new AppError(tt('เลขใบขับขี่ต้องเป็นตัวเลข 13 หลัก', 'Driving licence number must be 13 digits'), 'license');
+            u.nationalId = nid; u.license = normLicence($('[data-field=license] input', f).value); Store.save();
           }
           if (!$('[data-field=agree] input', f).checked) throw new AppError(tt('กรุณายืนยันว่าตรวจสอบข้อมูลแล้ว', 'Please confirm you have checked the details'), 'agree');
           const b = Logic.createBooking({ customerId: u.id, plate: w.plate, start: w.start, end: w.end });
@@ -152,7 +156,8 @@ const CustomerViews = {
   detail(id) {
     const b = Store.rental(id), car = Store.car(b.plate);
     const job = b.repairJob ? Store.job(b.repairJob) : Store.db.jobs.find(j => j.bookingId === b.id);
-    const canEdit = b.status === 'confirmed', canCancel = ['confirmed', 'pending_payment'].includes(b.status);
+    const editLocked = b.status === 'confirmed' && Logic.editLocked(b);
+    const canEdit = b.status === 'confirmed' && !editLocked, canCancel = ['confirmed', 'pending_payment'].includes(b.status);
     const m = UI.modal(`<div class="modal-head"><div><h3>${tt('รายละเอียดการเช่า', 'Rental details')} <span class="mono">${b.id}</span></h3><div class="row" style="margin-top:4px">${badge(b.status)}${b.contract ? (b.contract.signed ? `<span class="badge b-ok">${tt('เซ็นสัญญาแล้ว', 'Contract signed')}</span>` : `<span class="badge b-warn">${tt('ยังไม่เซ็นสัญญา', 'Contract unsigned')}</span>`) : ''}</div></div><button class="x-btn" data-close>×</button></div>
       <div class="modal-body"><div class="grid g2">
         <dl class="kv">
@@ -172,6 +177,7 @@ const CustomerViews = {
           ${b.depositStatus === 'refunded' || b.depositStatus === 'settled' ? `<div class="sum-line"><span>${tt('คืนเงินมัดจำ', 'Deposit refunded')}</span><span class="mono">${money(b.status === 'cancelled' ? b.deposit : b.depositRefund)}</span></div>` : ''}
           ${b.refund ? `<div class="sum-line"><span>${tt('คืนเงินค่าเช่า', 'Rent refunded')}</span><span class="mono">${money(b.refund)}</span></div>` : ''}
           ${b.status === 'pending_payment' ? `<div class="alert alert-warn small" style="margin-top:10px">${tt('รอชำระเงินภายใน', 'Pay before')} ${fmtDT(b.holdUntil)}</div>` : ''}
+          ${editLocked ? `<div class="alert alert-info small" style="margin-top:10px">🔒 ${tt(`เหลือเวลาก่อนรับรถไม่ถึง ${POLICY.cancelHours} ชั่วโมง การเช่านี้จึงแก้ไขผ่านระบบไม่ได้แล้ว หากต้องการเปลี่ยนแปลง กรุณาติดต่อเคาน์เตอร์สาขา`, `Less than ${POLICY.cancelHours} hours to pick-up, so this booking can no longer be changed online. Please contact the branch for any changes.`)}</div>` : ''}
           ${job ? `<div class="alert ${b.returned && b.returned.damaged && b.depositStatus === 'held' ? 'alert-warn' : 'alert-info'} small" style="margin-top:10px"><b>${tt('รายการซ่อม', 'Repair')}</b>: ${esc(job.damage)}<br>${tt('ค่าใช้จ่ายการซ่อมรถ', 'Repair cost')}: <b>${job.status === 'approved' ? money(Logic.jobCost(job)) : tt('อยู่ระหว่างประเมิน', 'being assessed')}</b> ${badge(job.status)}</div>` : ''}
         </div></div></div>
       <div class="modal-foot">
@@ -179,6 +185,7 @@ const CustomerViews = {
         ${b.contract ? `<button class="btn ${b.contract.signed ? '' : 'btn-primary'}" data-a="contract">${b.contract.signed ? tt('ดูสัญญาเช่า', 'View contract') : tt('อ่านและเซ็นสัญญา', 'Read & sign contract')}</button>` : ''}
         ${b.status !== 'pending_payment' && b.status !== 'cancelled' || b.refund ? `<button class="btn" data-a="invoice">${tt('ใบแจ้งหนี้', 'Invoice')}</button>` : ''}
         ${canEdit ? `<button class="btn" data-a="edit">${tt('แก้ไขการเช่า', 'Edit rental')}</button>` : ''}
+        ${editLocked ? `<button class="btn" disabled title="${tt('แก้ไขไม่ได้ภายใน 24 ชั่วโมงก่อนรับรถ', 'Cannot edit within 24 hours of pick-up')}">🔒 ${tt('แก้ไขการเช่า', 'Edit rental')}</button>` : ''}
         ${canCancel ? `<button class="btn btn-danger" data-a="cancel">${b.status === 'pending_payment' ? tt('ยกเลิกการจอง', 'Cancel booking') : tt('ยกเลิกการเช่า', 'Cancel rental')}</button>` : ''}
       </div>`, { wide: true });
     const act = (a, fn) => { const x = $(`[data-a=${a}]`, m.el); if (x) x.onclick = () => { m.close(true); fn(); }; };
@@ -269,7 +276,7 @@ const CustomerViews = {
       UI.clearErrors(f); $('[data-save]', m.el).disabled = true; $('#pv', f).innerHTML = '';
       try {
         UI.require(f, ['start', 'end']);
-        pv = Logic.previewEdit(b.id, read());
+        pv = Logic.previewEdit(b.id, read(), { actor: staff ? 'staff' : 'customer' });
         const d = pv.diff, dd = pv.depositDiff;
         $('#pv', f).innerHTML = `<div class="card" style="box-shadow:none;margin-top:4px">
           <div class="sum-line"><span>${tt('ค่าเช่าเดิมที่ชำระแล้ว', 'Rent already paid')}</span><span class="mono">${money(pv.paid)}</span></div>
@@ -285,7 +292,7 @@ const CustomerViews = {
     $('[data-save]', m.el).onclick = () => {
       if (!pv) return check();
       const changes = read(), owe = pv.diff + pv.depositDiff;
-      const finish = method => { try { const r = Logic.applyEdit(b.id, changes, method); UI.toast(tt(`แก้ไขการเช่าสำเร็จ (ส่วนต่าง ${money(r.diff)})`, `Rental updated (difference ${money(r.diff)})`), 'ok'); App.render(); return r.txn; } catch (err) { UI.toast(err.message, 'err'); throw err; } };
+      const finish = method => { try { const r = Logic.applyEdit(b.id, changes, method, staff ? 'staff' : 'customer'); UI.toast(tt(`แก้ไขการเช่าสำเร็จ (ส่วนต่าง ${money(r.diff)})`, `Rental updated (difference ${money(r.diff)})`), 'ok'); App.render(); return r.txn; } catch (err) { UI.toast(err.message, 'err'); throw err; } };
       m.close(true);
       if (owe > 0) {
         PaymentService.open({

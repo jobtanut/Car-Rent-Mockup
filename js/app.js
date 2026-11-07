@@ -209,7 +209,7 @@ const App = {
       <div class="card"><form id="f" class="form" novalidate><div class="form-alert"></div><div class="fields">
         ${UI.field('first', 'ชื่อ', 'First name', '<input autocomplete="given-name">', { req: true })}${UI.field('last', 'นามสกุล', 'Last name', '<input autocomplete="family-name">', { req: true })}
         ${UI.field('nid', 'เลขบัตรประชาชน', 'National ID number', '<input inputmode="numeric" maxlength="13">', { req: true, hint: tt('13 หลัก ระบบตรวจ checksum · ตัวอย่างที่ถูกต้อง 1103700012346', '13 digits, checksum validated · valid example 1103700012346') })}
-        ${UI.field('license', 'เลขใบขับขี่', 'Driving licence no.', '<input>', { req: true })}
+        ${UI.field('license', 'เลขใบขับขี่', 'Driving licence no.', '<input inputmode="numeric" maxlength="17" placeholder="6100012345678">', { req: true, hint: tt('ตัวเลข 13 หลัก เช่น 6100012345678', '13 digits, e.g. 6100012345678') })}
         ${UI.field('phone', 'เบอร์โทร', 'Phone', '<input inputmode="tel" maxlength="10" placeholder="08xxxxxxxx">', { req: true })}
         ${UI.field('email', 'อีเมล', 'Email', '<input type="email" autocomplete="email">', { req: true })}
         ${UI.field('username', 'Username', 'Username', '<input autocapitalize="off" autocomplete="username">', { req: true, hint: tt('a–z, 0–9 อย่างน้อย 4 ตัว', 'a–z, 0–9, at least 4 characters') })}
@@ -226,6 +226,7 @@ const App = {
         UI.require(f, ['first', 'last', 'nid', 'license', 'phone', 'email', 'username', 'password', 'confirm']);
         if (!validThaiId(v('nid'))) throw new AppError(tt('เลขบัตรประชาชนไม่ถูกต้อง (ต้องเป็น 13 หลักและผ่าน checksum)', 'Invalid national ID (13 digits with valid checksum)'), 'nid');
         if (Store.db.users.some(u => u.role === 'customer' && u.nationalId === v('nid') && u.username)) throw new AppError(tt('เลขบัตรประชาชนนี้มีบัญชีอยู่แล้ว', 'An account already exists for this ID'), 'nid');
+        if (!validLicence(v('license'))) throw new AppError(tt('เลขใบขับขี่ต้องเป็นตัวเลข 13 หลัก', 'Driving licence number must be 13 digits'), 'license');
         if (!/^0\d{9}$/.test(v('phone'))) throw new AppError(tt('เบอร์โทรต้องเป็นตัวเลข 10 หลักขึ้นต้นด้วย 0', 'Phone must be 10 digits starting with 0'), 'phone');
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v('email'))) throw new AppError(tt('รูปแบบอีเมลไม่ถูกต้อง', 'Invalid email format'), 'email');
         if (!/^[a-z0-9_.]{4,}$/i.test(v('username'))) throw new AppError(tt('Username ต้องเป็น a–z, 0–9 อย่างน้อย 4 ตัว', 'Username must be a–z, 0–9, at least 4 characters'), 'username');
@@ -236,7 +237,7 @@ const App = {
         if (!$('[data-field=pdpa] input', f).checked) throw new AppError(tt('กรุณายินยอมการเก็บข้อมูลส่วนบุคคล', 'Please give consent to continue'), 'pdpa');
         const walk = Store.db.users.find(u => u.role === 'customer' && u.nationalId === v('nid') && !u.username);
         const u = walk || { id: Store.next('user', 'U'), role: 'customer', status: 'active', createdAt: Date.now() };
-        Object.assign(u, { firstName: v('first'), lastName: v('last'), nationalId: v('nid'), license: v('license'), phone: v('phone'), email: v('email'), username: v('username'), password: pw, walkIn: false });
+        Object.assign(u, { firstName: v('first'), lastName: v('last'), nationalId: v('nid'), license: normLicence(v('license')), phone: v('phone'), email: v('email'), username: v('username'), password: pw, walkIn: false });
         if (!walk) Store.db.users.push(u);
         Logic.mail(u.id, tt('ยินดีต้อนรับสู่ระบบเช่ารถ', 'Welcome to the car rental system'), tt('สร้างบัญชีผู้ใช้เรียบร้อยแล้ว คุณสามารถค้นหาและจองรถได้ทันที', 'Your account is ready. You can search and book cars now.'));
         Store.save();
@@ -247,5 +248,13 @@ const App = {
     };
   },
 };
+
+/* clear a field's error as soon as the user fixes it (ticks the box, types, picks an option) */
+['input', 'change'].forEach(ev => document.addEventListener(ev, e => {
+  const f = e.target.closest && e.target.closest('.field.invalid');
+  if (!f) return;
+  f.classList.remove('invalid');
+  const er = f.querySelector('.err'); if (er) er.textContent = '';
+}));
 
 document.addEventListener('DOMContentLoaded', () => App.init());
