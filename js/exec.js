@@ -20,7 +20,29 @@ const ExecViews = {
         <div class="stat"><div class="label">${tt('รถที่ถูกเช่า', 'Cars rented')}</div><div class="value">${rented}</div></div>
         <div class="stat"><div class="label">${tt('รถที่ซ่อม', 'Cars in repair')}</div><div class="value">${repair}</div></div></div>
       <div class="grid g2"><div class="card"><h3 style="margin-bottom:8px">${tt('รายได้ 6 เดือนล่าสุด', 'Revenue, last 6 months')}</h3>${UI.bars(months)}</div>
-      <div class="card"><h3 style="margin-bottom:10px">${tt('รายได้ตามสาขา', 'Revenue by branch')}</h3>${UI.hbars(byBranch)}<h3 style="margin:16px 0 10px">${tt('รายได้ตามประเภทรถ', 'Revenue by car type')}</h3>${UI.hbars(byType)}</div></div>`;
+      <div class="card"><h3 style="margin-bottom:10px">${tt('รายได้ตามสาขา', 'Revenue by branch')}</h3>${UI.hbars(byBranch)}<h3 style="margin:16px 0 10px">${tt('รายได้ตามประเภทรถ', 'Revenue by car type')}</h3>${UI.hbars(byType)}</div></div>
+      <div class="card" style="margin-top:16px"><div class="card-head"><h3>${tt('ดูข้อมูลรายคัน', 'Look up a car')}</h3><div style="min-width:220px">${UI.field('plate', 'ทะเบียนรถ', 'Plate', this.plateSelect(App.params.plate || '', tt('เลือกทะเบียนรถ', 'Choose a plate')))}</div></div><div id="car1"></div></div>`;
+    const sel = $('[data-field=plate] select', el), box = $('#car1', el);
+    const show = () => {
+      const c = Store.car(sel.value);
+      if (!c) { box.innerHTML = `<p class="muted small">${tt('เลือกทะเบียนรถเพื่อดูรายได้ จำนวนการเช่า และค่าซ่อมของคันนั้น', 'Choose a plate to see that car\'s revenue, rentals and repair cost')}</p>`; return; }
+      const ids = new Set(db.rentals.filter(b => b.plate === c.plate).map(b => b.id));
+      const n = db.rentals.filter(b => b.plate === c.plate && b.status !== 'cancelled' && b.status !== 'pending_payment').length;
+      const rev = Logic.revenue(p => ids.has(p.bookingId)), cost = db.jobs.filter(j => j.plate === c.plate).reduce((s, j) => s + Logic.jobCost(j), 0);
+      box.innerHTML = `<div class="small muted" style="margin-bottom:10px">${esc(carName(c))} · ${esc(typeName(c.type))} · ${esc(branchName(c.branch))} · ${badge(Logic.carStatus(c))}</div><div class="grid g3">
+        <div class="stat"><div class="label">${tt('รายได้รวม', 'Total revenue')}</div><div class="value">${money(rev)}</div></div>
+        <div class="stat"><div class="label">${tt('จำนวนการเช่า', 'Rentals')}</div><div class="value">${num(n)}</div></div>
+        <div class="stat"><div class="label">${tt('ค่าซ่อมรวม', 'Repair cost')}</div><div class="value">${money(cost)}</div></div>
+        <div class="stat"><div class="label">${tt('กำไรของคันนี้', 'Profit from this car')}</div><div class="value">${money(rev - cost)}</div></div>
+        <div class="stat"><div class="label">${tt('อัตราการใช้รถ (90 วัน)', 'Utilisation (90 days)')}</div><div class="value">${(Logic.utilisation(c.plate, 90) * 100).toFixed(1)}%</div></div>
+        <div class="stat"><div class="label">${tt('เลขไมล์ล่าสุด', 'Odometer')}</div><div class="value">${num(c.mileage || 0)}</div></div></div>`;
+    };
+    sel.onchange = show; show();
+  },
+
+  /* plate picker shared by the overview and reports (DFD: Big Manager → 4 ทะเบียนรถ) */
+  plateSelect(cur, blank = tt('ทุกคัน', 'All cars')) {
+    return `<select><option value="">${blank}</option>${Store.db.cars.map(c => `<option value="${esc(c.plate)}" ${c.plate === cur ? 'selected' : ''}>${esc(c.plate)} · ${esc(carName(c))}</option>`).join('')}</select>`;
   },
 
   revenue(el) {
@@ -88,28 +110,29 @@ const ExecViews = {
   REPORTS: {
     rentals: {
       th: 'รายงานการเช่ารถ', en: 'Rental report', cols: () => [['Booking ID', 'Booking ID'], ['ผู้เช่า', 'Renter'], ['ทะเบียนรถ', 'Plate'], ['ประเภทรถ', 'Type'], ['สาขา', 'Branch'], ['วันเวลารับรถ', 'Pick-up'], ['วันเวลาคืนรถ', 'Return'], ['ยอดชำระ', 'Amount'], ['ค่าปรับ', 'Late fee'], ['สถานะ', 'Status']],
-      rows: (a, z) => Store.db.rentals.filter(b => b.pickupAt >= a && b.pickupAt <= z).sort((x, y) => x.pickupAt - y.pickupAt).map(b => [b.id, fullName(Store.user(b.customerId)), b.plate, typeName(b.type), branchName(b.branch), fmtDT(b.pickupAt), fmtDT(b.returnAt), b.total, b.lateFee, tt(STATUS[b.status][0], STATUS[b.status][1])])
+      rows: (a, z, pl) => Store.db.rentals.filter(b => b.pickupAt >= a && b.pickupAt <= z && (!pl || b.plate === pl)).sort((x, y) => x.pickupAt - y.pickupAt).map(b => [b.id, fullName(Store.user(b.customerId)), b.plate, typeName(b.type), branchName(b.branch), fmtDT(b.pickupAt), fmtDT(b.returnAt), b.total, b.lateFee, tt(STATUS[b.status][0], STATUS[b.status][1])])
     },
     repairs: {
       th: 'รายงานการซ่อมรถ', en: 'Repair report', cols: () => [['งาน', 'Job'], ['ทะเบียนรถ', 'Plate'], ['รายการซ่อม', 'Repair'], ['ช่าง', 'Mechanic'], ['ซ่อมที่', 'Where'], ['ค่าซ่อม', 'Cost'], ['สถานะ', 'Status'], ['วันที่', 'Date']],
-      rows: (a, z) => Store.db.jobs.filter(j => { const t = j.approvedAt || j.assignedAt || 0; return t >= a && t <= z; }).map(j => [j.id, j.plate, j.damage, j.assignedTo ? fullName(Store.user(j.assignedTo)) : '-', j.mode === 'shop' ? tt('อู่', 'Shop') : tt('ภายใน', 'In-house'), Logic.jobCost(j), tt(STATUS[j.status][0], STATUS[j.status][1]), fmtD(j.approvedAt || j.assignedAt)])
+      rows: (a, z, pl) => Store.db.jobs.filter(j => { const t = j.approvedAt || j.assignedAt || 0; return t >= a && t <= z && (!pl || j.plate === pl); }).map(j => [j.id, j.plate, j.damage, j.assignedTo ? fullName(Store.user(j.assignedTo)) : '-', j.mode === 'shop' ? tt('อู่', 'Shop') : tt('ภายใน', 'In-house'), Logic.jobCost(j), tt(STATUS[j.status][0], STATUS[j.status][1]), fmtD(j.approvedAt || j.assignedAt)])
     },
     payments: {
       th: 'รายงานการชำระเงิน', en: 'Payment report', cols: () => [['เลขที่ธุรกรรม', 'Txn'], ['Booking ID', 'Booking ID'], ['รายการ', 'Kind'], ['ช่องทาง', 'Method'], ['วันที่', 'Date'], ['จำนวนเงิน', 'Amount']],
-      rows: (a, z) => Store.db.payments.filter(p => p.at >= a && p.at <= z).sort((x, y) => x.at - y.at).map(p => [p.txn, p.bookingId, payKind(p.kind), methodName(p.method), fmtDT(p.at), p.amount])
+      rows: (a, z, pl) => Store.db.payments.filter(p => p.at >= a && p.at <= z && (!pl || payBooking(p).plate === pl)).sort((x, y) => x.at - y.at).map(p => [p.txn, p.bookingId, payKind(p.kind), methodName(p.method), fmtDT(p.at), p.amount])
     },
     customers: {
       th: 'รายงานลูกค้า', en: 'Customer report', cols: () => [['รหัสลูกค้า', 'Customer ID'], ['ชื่อ-นามสกุล', 'Name'], ['อีเมล', 'Email'], ['วันที่สมัคร', 'Joined'], ['จำนวนการเช่า', 'Rentals'], ['ยอดใช้จ่ายรวม', 'Total spend']],
-      rows: (a, z) => Store.db.users.filter(u => u.role === 'customer' && u.createdAt <= z).map(u => { const ids = new Set(Store.db.rentals.filter(b => b.customerId === u.id).map(b => b.id)); return [u.id, fullName(u), u.email || '-', fmtD(u.createdAt), ids.size, Logic.revenue(p => ids.has(p.bookingId) && p.at >= a && p.at <= z)]; })
+      rows: (a, z, pl) => Store.db.users.filter(u => u.role === 'customer' && u.createdAt <= z && (!pl || Store.db.rentals.some(b => b.customerId === u.id && b.plate === pl))).map(u => { const ids = new Set(Store.db.rentals.filter(b => b.customerId === u.id && (!pl || b.plate === pl)).map(b => b.id)); return [u.id, fullName(u), u.email || '-', fmtD(u.createdAt), ids.size, Logic.revenue(p => ids.has(p.bookingId) && p.at >= a && p.at <= z)]; })
     },
   },
   reports(el) {
     const p = App.params, kind = p.kind || 'rentals';
-    const from = p.from || toDateInput(Date.now() - 30 * DAY), to = p.to || toDateInput(Date.now() + 30 * DAY);
+    const from = p.from || toDateInput(Date.now() - 30 * DAY), to = p.to || toDateInput(Date.now() + 30 * DAY), plate = p.plate || '';
     el.innerHTML = UI.pageHead('รายงานทั้งหมด', 'All reports', 'ดูรายงาน แล้ว Export เป็น CSV (Excel) หรือ PDF', 'View reports, then export as CSV (Excel) or PDF', ['BM-05', 'BM-06'], ['4'])
-      + `<div class="card"><form id="f" class="form" novalidate><div class="form-alert"></div><div class="fields" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+      + `<div class="card"><form id="f" class="form" novalidate><div class="form-alert"></div><div class="fields" style="grid-template-columns:repeat(5,minmax(0,1fr))">
         ${UI.field('kind', 'ประเภทรายงาน', 'Report type', `<select>${Object.entries(this.REPORTS).map(([k, r]) => `<option value="${k}" ${k === kind ? 'selected' : ''}>${tt(r.th, r.en)}</option>`).join('')}</select>`, { req: true })}
         ${UI.field('from', 'ช่วงเวลา ตั้งแต่', 'From', `<input type="date" value="${from}">`, { req: true })}${UI.field('to', 'ถึง', 'To', `<input type="date" value="${to}">`, { req: true })}
+        ${UI.field('plate', 'ทะเบียนรถ', 'Plate', ExecViews.plateSelect(plate))}
         ${UI.field('fmt', 'รูปแบบไฟล์', 'File format', `<select><option value="csv">CSV (Excel)</option><option value="pdf">PDF (${tt('พิมพ์', 'print')})</option></select>`)}
         </div><div class="row" style="justify-content:flex-end"><button type="button" class="btn" id="view">${tt('ดูรายงาน', 'View report')}</button><button class="btn btn-primary">${tt('Export รายงาน', 'Export report')}</button></div></form></div><div id="res" style="margin-top:16px"></div>`;
     const f = $('#f', el);
@@ -118,11 +141,11 @@ const ExecViews = {
       UI.require(f, ['from', 'to']);
       const a = startOfDay($('[data-field=from] input', f).value).getTime(), z = startOfDay($('[data-field=to] input', f).value).getTime() + DAY - 1;
       if (z < a) throw new AppError(tt('วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่ม', 'End date cannot be before start date'), 'to');
-      const k = $('[data-field=kind] select', f).value, r = this.REPORTS[k];
-      return { k, r, a, z, cols: r.cols().map(c => tt(...c)), rows: r.rows(a, z) };
+      const k = $('[data-field=kind] select', f).value, r = this.REPORTS[k], pl = $('[data-field=plate] select', f).value;
+      return { k, r, a, z, pl, cols: r.cols().map(c => tt(...c)), rows: r.rows(a, z, pl) };
     };
     const show = rep => {
-      $('#res', el).innerHTML = `<div class="card" id="rep"><div class="card-head"><div><h3>${tt(rep.r.th, rep.r.en)}</h3><div class="small muted">${fmtD(rep.a)} – ${fmtD(rep.z)} · ${rep.rows.length} ${tt('รายการ', 'rows')} · ${tt('สร้างเมื่อ', 'generated')} ${fmtDT(Date.now())}</div></div></div>
+      $('#res', el).innerHTML = `<div class="card" id="rep"><div class="card-head"><div><h3>${tt(rep.r.th, rep.r.en)}</h3><div class="small muted">${fmtD(rep.a)} – ${fmtD(rep.z)}${rep.pl ? ` · <span class="mono">${esc(rep.pl)}</span>` : ''} · ${rep.rows.length} ${tt('รายการ', 'rows')} · ${tt('สร้างเมื่อ', 'generated')} ${fmtDT(Date.now())}</div></div></div>
         ${UI.table(rep.cols.map((h, i) => ({ h, cls: typeof rep.rows[0]?.[i] === 'number' ? 'num' : '', v: row => typeof row[i] === 'number' ? (/(ยอด|Amount|Cost|ค่า|fee|spend|จำนวนเงิน)/i.test(h) ? money(row[i]) : num(row[i])) : esc(row[i]) })), rep.rows.slice(0, 200), 'ไม่มีข้อมูลในช่วงเวลาที่เลือก', 'No data for this period')}</div>`;
     };
     $('#view', el).onclick = () => { try { show(build()); } catch (err) { UI.showError(f, err); } };
@@ -132,7 +155,7 @@ const ExecViews = {
         const rep = build();
         if (!rep.rows.length) throw new AppError(tt('ไม่มีข้อมูลในช่วงเวลาที่เลือก ไม่สามารถ Export ได้', 'No data in this period — nothing to export'));
         show(rep);
-        if ($('[data-field=fmt] select', f).value === 'csv') { UI.csv(`ITDS262_${rep.k}_report_${toDateInput(rep.a)}_${toDateInput(rep.z)}.csv`, [rep.cols, ...rep.rows]); UI.toast(tt('ดาวน์โหลดไฟล์รายงาน (CSV) แล้ว', 'Report downloaded (CSV)'), 'ok'); }
+        if ($('[data-field=fmt] select', f).value === 'csv') { UI.csv(`ITDS262_${rep.k}_report_${rep.pl ? rep.pl.replace(/\s+/g, '') + '_' : ''}${toDateInput(rep.a)}_${toDateInput(rep.z)}.csv`, [rep.cols, ...rep.rows]); UI.toast(tt('ดาวน์โหลดไฟล์รายงาน (CSV) แล้ว', 'Report downloaded (CSV)'), 'ok'); }
         else UI.printEl($('#rep', el));
       } catch (err) { UI.showError(f, err); }
     };

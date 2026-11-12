@@ -34,6 +34,9 @@ class AppError extends Error { constructor(msg, field) { super(msg); this.field 
 /* Thai national ID: 13 digits, last digit is a checksum */
 function thaiIdCheck(id12) { let s = 0; for (let i = 0; i < 12; i++) s += +id12[i] * (13 - i); return (11 - (s % 11)) % 10; }
 function validThaiId(id) { id = String(id).replace(/\D/g, ''); return id.length === 13 && thaiIdCheck(id) === +id[12]; }
+/* Thai driving licence number: 13 digits (spaces and dashes ignored) */
+function normLicence(v) { return String(v || '').replace(/[\s-]/g, ''); }
+function validLicence(v) { return /^\d{13}$/.test(normLicence(v)); }
 function luhn(n) { n = String(n).replace(/\D/g, ''); let s = 0, alt = false; for (let i = n.length - 1; i >= 0; i--) { let d = +n[i]; if (alt) { d *= 2; if (d > 9) d -= 9; } s += d; alt = !alt; } return n.length >= 13 && s % 10 === 0; }
 
 /* ---------- reference data ---------- */
@@ -92,7 +95,7 @@ const Seed = {
     const custNames = [['สมชาย', 'ใจดี'], ['สุดา', 'มีสุข'], ['ณัฐ', 'วงศ์ไทย'], ['พิมพ์ชนก', 'ศรีงาม'], ['อรรถพล', 'จันทร์เพ็ญ'], ['กมลชนก', 'ใจงาม'], ['ปิยะ', 'รัตนา'], ['ศิริพร', 'บุญมา'], ['ธีรวัฒน์', 'สายสุวรรณ'], ['ชลธิชา', 'ทองคำ'], ['วีรยุทธ', 'แสงทอง'], ['มานี', 'มานะ'], ['John', 'Smith'], ['Aiko', 'Tanaka']];
     custNames.forEach(([fn, ln], i) => {
       const username = i === 0 ? 'somchai' : i === 1 ? 'suda' : 'cust' + (i + 1);
-      db.users.push({ id: 'U' + (++db.counters.user), username, password: 'pass1234', role: 'customer', firstName: fn, lastName: ln, nationalId: this.thaiId(r), license: 'DL' + Math.floor(10000000 + r() * 89999999), phone: '08' + Math.floor(10000000 + r() * 89999999), email: username + '@mail.example', status: 'active', createdAt: i < 2 ? at(-200) : at(-Math.floor(r() * 170)) });
+      db.users.push({ id: 'U' + (++db.counters.user), username, password: 'pass1234', role: 'customer', firstName: fn, lastName: ln, nationalId: this.thaiId(r), license: String(6100000000000 + Math.floor(r() * 899999999999)), phone: '08' + Math.floor(10000000 + r() * 89999999), email: username + '@mail.example', status: 'active', createdAt: i < 2 ? at(-200) : at(-Math.floor(r() * 170)) });
     });
 
     /* D3 อัตราค่าเช่า */
@@ -299,6 +302,7 @@ const Logic = {
   },
   housekeeping() {
     let changed = false;
+    Store.db.users.forEach(u => { const m = /^(?:DL)?(\d{8})$/.exec(u.license || ''); if (m) { u.license = '61000' + m[1]; changed = true; } });  // older demo data
     Store.db.rentals.forEach(b => { if (b.status === 'pending_payment' && b.holdUntil && b.holdUntil < Date.now()) { b.status = 'cancelled'; b.cancelReason = 'หมดเวลาชำระเงิน (Payment time expired)'; b.cancelledAt = Date.now(); changed = true; } });
     if (changed) Store.save();
   },
@@ -322,10 +326,13 @@ const Logic = {
   },
   paidRent(id) { return Store.db.payments.filter(p => p.bookingId === id && ['rent', 'difference', 'refund_difference'].includes(p.kind)).reduce((s, p) => s + p.amount, 0); },
   /* FR C-13/14, OE-04 */
-  previewEdit(id, { start, end, plate }, { allowPast = false } = {}) {
+  /* customers may only change a booking up to 24h before pick-up (same window as cancelling); staff can always amend */
+  editLocked(b) { return b.pickupAt - Date.now() < POLICY.cancelHours * HOUR; },
+  previewEdit(id, { start, end, plate }, { allowPast = false, actor = 'customer' } = {}) {
     const b = Store.rental(id);
     if (!b) throw new AppError(tt('ไม่พบ Booking ID นี้', 'Booking ID not found'));
     if (b.status !== 'confirmed') throw new AppError(tt('แก้ไขได้เฉพาะการจองที่ชำระแล้วและยังไม่รับรถ', 'Only paid bookings that have not been picked up can be edited'));
+    if (actor === 'customer' && this.editLocked(b)) throw new AppError(tt(`เหลือเวลาก่อนรับรถไม่ถึง ${POLICY.cancelHours} ชั่วโมง แก้ไขการเช่าผ่านระบบไม่ได้ กรุณาติดต่อเคาน์เตอร์สาขา`, `Less than ${POLICY.cancelHours} hours to pick-up — this booking can no longer be changed online. Please contact the branch.`));
     this.validatePeriod(start, end, { allowPast });
     if (!this.isFree(plate, start, end, b.id)) throw new AppError(tt('รถที่เลือกไม่ว่างในช่วงเวลาใหม่', 'The selected car is not available for the new period'), 'plate');
     const car = Store.car(plate);
@@ -333,8 +340,8 @@ const Logic = {
     const paid = this.paidRent(b.id);
     return { booking: b, car, price: p, paid, diff: p.total - paid, depositDiff: p.deposit - b.deposit };
   },
-  applyEdit(id, changes, method) {
-    const pv = this.previewEdit(id, changes, { allowPast: true });
+  applyEdit(id, changes, method, actor = 'customer') {
+    const pv = this.previewEdit(id, changes, { allowPast: true, actor });
     const b = pv.booking;
     b.history.push({ at: Date.now(), from: { plate: b.plate, pickupAt: b.pickupAt, returnAt: b.returnAt, total: b.total }, to: { plate: changes.plate, pickupAt: changes.start, returnAt: changes.end, total: pv.price.total } });
     const txn = Store.next('txn', 'TXN');

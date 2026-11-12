@@ -50,10 +50,12 @@ Payment Service and the Maintenance Shop (อู่บำรุงรักษ�
 | Card declined by the bank | `4000 0000 0000 0002` |
 | Payment timeout (narrative 1) | On the payment window, click "Simulate payment timeout" (the real limit is 15 minutes) |
 | Cancelling inside 24 hours (narrative 3) | `somchai` › My rentals › BYD Atto 3 (pick-up tomorrow) › Cancel |
+| Editing inside 24 hours | `somchai` › My rentals › BYD Atto 3 › the Edit button is locked with a notice |
 | Hand-over before the contract is signed | `office1` › Hand-over › Somchai's Toyota Camry booking |
 | No car selected | `mech1` › Record car work › Save without choosing a car from the dropdown (it lists only cars with work assigned to that mechanic) |
 | Incomplete inspection (narrative 2) | `mech1` › ชช 3344 › leave some pass/fail items blank, then save |
 | Invalid national ID | Register with `1103700012347` (the valid one is `1103700012346`) |
+| Invalid licence number | Register (or create a walk-in rental) with `000`; a valid one is 13 digits, e.g. `6100012345678` |
 | 5 wrong passwords | The account is locked for 60 seconds |
 
 ## User flows
@@ -65,8 +67,9 @@ Customer       Register / sign in (1.1) → pick-up and return date, time and br
                → Payment Service: QR or card (1.4) → Booking ID + contract by email → sign the contract
                → view / edit / cancel (2.1–2.3) → pay the difference (2.4) → invoice · repair costs (3.4)
 
-Office         Check available cars (1.2) → create a walk-in rental (1.3) → take payment → customer signs the contract
-Employee       → hand-over: odometer, fuel, time (2.5) → return: late fee, deposit refund or damage report (2.6)
+Office         Check available cars by date and type (1.2) → create a walk-in rental by car make; the system assigns a free car (1.3)
+Employee       → take payment → customer signs the contract
+               → hand-over: odometer, fuel, time (2.6) → return: late fee, deposit refund or damage report (2.7)
 
 Damage found at return → job waits for assignment → Mechanic Manager assigns it (3.3)
                → mechanic records inspection + maintenance (3.4) → [sent to shop → shop returns result + cost]
@@ -76,7 +79,8 @@ Damage found at return → job waits for assignment → Mechanic Manager assigns
 Office         Daily dashboard · system data · manage employees · rental rates (3.2)
 Manager
 
-Big Manager    Company overview · revenue analysis (day/month/year, car type, branch) · KPIs · reports + CSV/PDF export (4)
+Big Manager    Company overview + per-car lookup by plate · revenue analysis (day/month/year, car type, branch) · KPIs
+               · reports filtered by period and plate + CSV/PDF export (4)
 ```
 
 ## Business rules used in the prototype
@@ -84,6 +88,7 @@ Big Manager    Company overview · revenue analysis (day/month/year, car type, b
 - Rent is charged per day, rounded up every 24 hours, using the cheapest mix of monthly, weekly and daily rates. Minimum rental is 4 hours, maximum 90 days.
 - A booking holds the car for 15 minutes while payment is pending. If it isn't paid, the system cancels it automatically.
 - Free cancellation with a full refund up to 24 hours before pick-up. Staff can cancel at any time.
+- Customers can't edit a booking within 24 hours of pick-up (the same window as cancelling); office staff can still amend it at the counter.
 - Editing a rental issues a new contract that must be signed again. A positive difference is paid through Payment Service; a negative one is refunded.
 - Returning more than 1 hour late costs 10% of the daily rate per hour (capped at 150% per day), deducted from the deposit.
 - The contract must be signed before hand-over. The odometer reading can't be lower than the last recorded value.
@@ -109,6 +114,28 @@ The DFD as drawn gives each role only its own processes. Inherited access means 
 
 Either add these flows (and «extends»/generalisation links between the actors on the use case diagram), or note in the report that managers act as the lower role when they use those pages.
 
+## Database (MySQL)
+
+The prototype keeps its data in the browser, but `database/` has the same data stores as a MySQL 8 / MariaDB schema, seeded with the prototype's demo data.
+
+```
+mysql --default-character-set=utf8mb4 -u root -p < database/01-d2-cars.sql
+mysql --default-character-set=utf8mb4 -u root -p < database/02-d1-d3-d6.sql
+```
+
+Load them in that order (or import both in phpMyAdmin). Keep the client on utf8mb4, or Thai text shows as "???". Every demo account's password is `pass1234`, stored as SHA-256 for the demo only.
+
+| DFD data store | Tables |
+|---|---|
+| D1 ผู้ใช้ | `users` |
+| D2 รถ | `cars`, with lookup tables `branches` and `car_types` |
+| D3 อัตราค่าเช่า | `rates` |
+| D4 การเช่า | `rentals` (contract, hand-over and return are columns) |
+| D5 การชำระเงิน | `payments` (refunds are negative amounts) |
+| D6 การซ่อมบำรุง | `maintenance_jobs`, `inspection_items`, `maintenance_logs`, `job_progress` |
+
+Views: `v_fleet_status`, `v_car_service_due` (maintenance schedule), `v_rental_detail`, `v_daily_revenue`, `v_repair_cost_per_car`.
+
 ## File structure
 
 | File | Contents |
@@ -122,3 +149,5 @@ Either add these flows (and «extends»/generalisation links between the actors 
 | `js/mechanic.js` | Mechanic and Mechanic Manager screens, including the simulated Maintenance Shop |
 | `js/exec.js` | Big Manager screens and the FR map |
 | `js/app.js` | Sign-in, registration and role-based menus |
+| `database/01-d2-cars.sql` | MySQL schema and demo data for D2 รถ (cars, branches, car types) |
+| `database/02-d1-d3-d6.sql` | MySQL schema and demo data for D1, D3, D4, D5 and D6 |

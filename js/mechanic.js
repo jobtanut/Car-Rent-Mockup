@@ -141,7 +141,7 @@ const MechViews = {
         <div data-field="items"><span class="err"></span></div>
         ${UI.field('damage', 'รายการความเสียหายที่พบ', 'Damage found', `<textarea>${esc(j.inspection ? j.inspection.damage || '' : '')}</textarea>`, { hint: tt('เว้นว่างได้ถ้าไม่พบ', 'Leave blank if none') })}
         ${UI.field('note', 'สรุปผลการตรวจสภาพรถ', 'Inspection summary', `<textarea>${esc(j.inspection ? j.inspection.note : '')}</textarea>`, { req: true })}
-        ${UI.field('carStatus', 'สถานะของรถ', 'Car status', `<select><option value="maintenance">${tt('ยังต้องซ่อม / ไม่พร้อมใช้งาน', 'Still needs work / not ready')}</option><option value="ready">${tt('ตรวจผ่าน รอหัวหน้าช่างอนุมัติ', 'Passed, awaiting manager approval')}</option></select>`, { req: true })}
+        ${UI.field('carStatus', 'สถานะของรถ', 'Car status', `<select><option value="maintenance">${tt('ยังต้องซ่อม / ไม่พร้อมใช้งาน', 'Still needs work / not ready')}</option><option value="ready" ${j.status === 'done' ? 'selected' : ''}>${tt('ตรวจผ่าน รอหัวหน้าช่างอนุมัติ', 'Passed, awaiting manager approval')}</option></select>`, { req: true })}
         <div class="row" style="justify-content:flex-end"><button class="btn btn-primary">${tt('ยืนยันการบันทึก', 'Confirm & save')}</button></div></form>`
         : `<form id="mf" class="form" novalidate><div class="form-alert"></div><div class="fields">
         ${UI.field('work', 'งานที่ทำ', 'Work performed', '<textarea></textarea>', { req: true, cls: 'span2' })}

@@ -548,16 +548,84 @@ textarea:focus {
   color: var(--faint)
 }
 
+/* agreement checkboxes: big box, whole row clickable, clear checked state */
 .check {
   display: flex;
-  gap: 8px;
+  gap: 12px;
   align-items: flex-start;
-  font-size: 13px
+  font-size: 14px;
+  line-height: 1.45;
+  padding: 12px 14px;
+  border: 1.5px solid var(--line-2);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color .15s, background .15s
+}
+
+.check:hover {
+  border-color: var(--accent)
 }
 
 .check input {
-  width: auto;
-  margin-top: 3px
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  padding: 0;
+  border: 2px solid var(--line-2);
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background .15s, border-color .15s
+}
+
+.check input::after {
+  content: "";
+  width: 6px;
+  height: 11px;
+  border: solid #fff;
+  border-width: 0 2.5px 2.5px 0;
+  transform: rotate(45deg) translate(-1px, -1px);
+  opacity: 0
+}
+
+.check input:checked {
+  background: var(--accent);
+  border-color: var(--accent)
+}
+
+.check input:checked::after {
+  opacity: 1
+}
+
+.check input:focus-visible {
+  outline: 3px solid var(--yellow);
+  outline-offset: 2px
+}
+
+.check:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft)
+}
+
+.field.invalid .check {
+  border-color: var(--danger);
+  background: #fffafa
+}
+
+/* pass/fail radios in the inspection table */
+input[type=radio] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  margin: 0
 }
 
 .alert {

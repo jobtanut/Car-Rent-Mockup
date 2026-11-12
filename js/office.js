@@ -28,10 +28,9 @@ const StaffViews = {
     const s0 = p.start || (() => { const d = new Date(); d.setMinutes(0, 0, 0); d.setHours(d.getHours() + 1); return d.getTime(); })();
     const e0 = p.end || s0 + DAY;
     el.innerHTML = UI.pageHead('ตรวจสอบรถที่ว่าง', 'Check available cars', 'ค้นหารถว่างตามวันที่เช่าและประเภทรถ', 'Search free cars by rental date and type', ['OE-02'], ['1.2'])
-      + `<div class="card"><form id="f" class="form" novalidate><div class="form-alert"></div><div class="fields" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+      + `<div class="card"><form id="f" class="form" novalidate><div class="form-alert"></div><div class="fields f3">
         ${UI.field('start', 'วันที่เช่า (รับรถ)', 'Rental date (pick-up)', `<input type="datetime-local" value="${toLocalInput(s0)}">`, { req: true })}
         ${UI.field('end', 'วันที่คืนรถ', 'Return date', `<input type="datetime-local" value="${toLocalInput(e0)}">`, { req: true })}
-        ${UI.field('branch', 'สาขา', 'Branch', `<select><option value="">${tt('ทุกสาขา', 'All branches')}</option>${BRANCHES.map(b => `<option value="${b.id}" ${p.branch === b.id ? 'selected' : ''}>${esc(tt(b.th, b.en))}</option>`).join('')}</select>`)}
         ${UI.field('type', 'ประเภทรถ', 'Car type', `<select><option value="">${tt('ทุกประเภท', 'All types')}</option>${TYPES.map(t => `<option value="${t.id}" ${p.type === t.id ? 'selected' : ''}>${esc(tt(t.th, t.en))}</option>`).join('')}</select>`)}
         </div><div class="row" style="justify-content:flex-end"><button class="btn btn-primary">${tt('ตรวจสอบ', 'Check')}</button></div></form></div><div id="res"></div>`;
     const f = $('#f', el);
@@ -40,8 +39,8 @@ const StaffViews = {
       try {
         const start = new Date($('[data-field=start] input', f).value).getTime(), end = new Date($('[data-field=end] input', f).value).getTime();
         Logic.validatePeriod(start, end, { allowPast: true });
-        const branch = $('[data-field=branch] select', f).value, type = $('[data-field=type] select', f).value;
-        const cars = Store.db.cars.filter(c => (!branch || c.branch === branch) && (!type || c.type === type));
+        const type = $('[data-field=type] select', f).value;
+        const cars = Store.db.cars.filter(c => !type || c.type === type);
         const free = cars.filter(c => Logic.isFree(c.plate, start, end));
         $('#res', el).innerHTML = `<div class="card"><div class="card-head"><h3>${tt('รายการรถที่ว่าง', 'Available cars')}: ${free.length} / ${cars.length}</h3>
           <button class="btn btn-sm btn-primary" id="mk" ${free.length ? '' : 'disabled'}>${tt('สร้างรายการเช่าจากช่วงเวลานี้', 'Create rental for this period')} →</button></div>
@@ -51,7 +50,7 @@ const StaffViews = {
           { h: tt('ค่าเช่า', 'Price'), cls: 'num', v: c => money(Logic.price(c.type, start, end).total) },
           { h: tt('ช่วงเวลานี้', 'This period'), v: c => Logic.isFree(c.plate, start, end) ? badge('available') : c.status === 'maintenance' ? badge('maintenance') : `<span class="badge b-danger">${tt('ไม่ว่าง (มีการจอง)', 'Booked')}</span>` },
         ], cars.sort((a, b) => Logic.isFree(b.plate, start, end) - Logic.isFree(a.plate, start, end)))}</div>`;
-        $('#mk', el).onclick = () => App.go('create', { start, end, branch, type });
+        $('#mk', el).onclick = () => App.go('create', { start, end, type });
       } catch (err) { UI.showError(f, err); $('#res', el).innerHTML = ''; }
     };
     f.onsubmit = e => { e.preventDefault(); run(); };
@@ -69,7 +68,7 @@ const StaffViews = {
           <div id="newc" class="fields">
             ${UI.field('first', 'ชื่อ', 'First name', '<input>', { req: true })}${UI.field('last', 'นามสกุล', 'Last name', '<input>', { req: true })}
             ${UI.field('nid', 'เลขบัตรประชาชน', 'National ID', '<input inputmode="numeric" maxlength="13" placeholder="13 หลัก">', { req: true, hint: tt('ตรวจ checksum 13 หลัก', '13-digit checksum validated') })}
-            ${UI.field('license', 'เลขใบขับขี่', 'Driving licence no.', '<input>', { req: true })}
+            ${UI.field('license', 'เลขใบขับขี่', 'Driving licence no.', '<input inputmode="numeric" maxlength="17" placeholder="6100012345678">', { req: true, hint: tt('ตัวเลข 13 หลัก เช่น 6100012345678', '13 digits, e.g. 6100012345678') })}
             ${UI.field('phone', 'เบอร์โทร', 'Phone', '<input inputmode="tel" maxlength="10" placeholder="08xxxxxxxx">', { req: true })}
             ${UI.field('email', 'อีเมล', 'Email', '<input type="email">')}
           </div>
@@ -78,25 +77,29 @@ const StaffViews = {
         <div class="card"><h3 style="margin-bottom:14px">${tt('ข้อมูลการเช่า', 'Rental')}</h3><div class="fields">
           ${UI.field('start', 'วันเวลารับรถ', 'Pick-up', `<input type="datetime-local" value="${toLocalInput(s0)}">`, { req: true })}
           ${UI.field('end', 'วันเวลาคืนรถ', 'Return', `<input type="datetime-local" value="${toLocalInput(e0)}">`, { req: true })}
-          ${UI.field('plate', 'ยี่ห้อรถ / ทะเบียน (เฉพาะคันที่ว่าง)', 'Car / plate (available only)', '<select></select>', { req: true, cls: 'span2' })}
+          ${UI.field('make', 'ยี่ห้อรถ (เฉพาะรุ่นที่ว่าง)', 'Car make (available only)', '<select></select>', { req: true, cls: 'span2', hint: tt('ระบบเลือกคันที่ว่างให้อัตโนมัติ', 'The system assigns a free car of this make') })}
           </div><div id="price" style="margin-top:12px"></div></div></div>
         <div class="row" style="justify-content:flex-end;margin-top:16px"><button class="btn btn-primary">${tt('สร้างรายการเช่าและรับชำระเงิน', 'Create rental and take payment')}</button></div></form>`;
     const f = $('#f', el); let mode = 'new';
     $$('[data-mode]', f).forEach(b => b.onclick = () => { mode = b.dataset.mode; $$('[data-mode]', f).forEach(x => x.classList.toggle('on', x === b)); $('#newc', f).classList.toggle('hidden', mode !== 'new'); $('#oldc', f).classList.toggle('hidden', mode !== 'old'); });
-    const sIn = $('[data-field=start] input', f), eIn = $('[data-field=end] input', f), pSel = $('[data-field=plate] select', f);
+    const sIn = $('[data-field=start] input', f), eIn = $('[data-field=end] input', f), mSel = $('[data-field=make] select', f);
+    let groups = new Map();  // make → free cars, cheapest first
+    const pick = () => (groups.get(mSel.value) || [])[0] || null;
     const refresh = () => {
       const start = new Date(sIn.value).getTime(), end = new Date(eIn.value).getTime();
-      if (!(end > start)) { pSel.innerHTML = `<option value="">${tt('ระบุช่วงเวลาให้ถูกต้องก่อน', 'Enter a valid period first')}</option>`; $('#price', f).innerHTML = ''; return; }
-      const list = Logic.search({ start, end, branch: p.branch || '', type: p.type || '' });
-      const all = list.length ? list : Logic.search({ start, end });
-      pSel.innerHTML = all.length ? all.map(({ car, price }) => `<option value="${esc(car.plate)}">${esc(carName(car))} · ${esc(car.plate)} · ${esc(branchName(car.branch))} · ${money(price.total)}</option>`).join('') : `<option value="">${tt('ไม่มีรถว่าง', 'No cars available')}</option>`;
+      groups = new Map();
+      if (!(end > start)) { mSel.innerHTML = `<option value="">${tt('ระบุช่วงเวลาให้ถูกต้องก่อน', 'Enter a valid period first')}</option>`; $('#price', f).innerHTML = ''; return; }
+      const list = Logic.search({ start, end, type: p.type || '' });
+      (list.length ? list : Logic.search({ start, end })).forEach(r => { const k = carName(r.car); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); });
+      groups.forEach(g => g.sort((a, b) => a.price.total - b.price.total));
+      mSel.innerHTML = groups.size ? [...groups].map(([k, g]) => `<option value="${esc(k)}">${esc(k)} · ${esc(typeName(g[0].car.type))} · ${money(g[0].price.total)} (${tt('ว่าง', 'free')} ${g.length})</option>`).join('') : `<option value="">${tt('ไม่มีรถว่าง', 'No cars available')}</option>`;
       showPrice();
     };
     const showPrice = () => {
-      const car = Store.car(pSel.value); const start = new Date(sIn.value).getTime(), end = new Date(eIn.value).getTime();
-      $('#price', f).innerHTML = car ? (() => { const pr = Logic.price(car.type, start, end); return `<div class="sum-line"><span>${tt('ค่าเช่า', 'Rent')} (${pr.days} ${tt('วัน', 'days')})</span><span class="mono">${money(pr.total)}</span></div><div class="sum-line"><span>${tt('มัดจำ', 'Deposit')}</span><span class="mono">${money(pr.deposit)}</span></div><div class="sum-line total"><span>${tt('ยอดชำระ', 'Amount due')}</span><span>${money(pr.total + pr.deposit)}</span></div>`; })() : '';
+      const car = pick() && pick().car; const start = new Date(sIn.value).getTime(), end = new Date(eIn.value).getTime();
+      $('#price', f).innerHTML = car ? (() => { const pr = Logic.price(car.type, start, end); return `<div class="sum-line"><span>${tt('ค่าเช่า', 'Rent')} (${pr.days} ${tt('วัน', 'days')})</span><span class="mono">${money(pr.total)}</span></div><div class="sum-line"><span>${tt('มัดจำ', 'Deposit')}</span><span class="mono">${money(pr.deposit)}</span></div><div class="sum-line total"><span>${tt('ยอดชำระ', 'Amount due')}</span><span>${money(pr.total + pr.deposit)}</span></div><p class="small muted" style="margin-top:8px">${tt('รถที่ระบบเลือก', 'Assigned car')}: <span class="mono">${esc(car.plate)}</span> · ${esc(branchName(car.branch))}</p>`; })() : '';
     };
-    sIn.onchange = refresh; eIn.onchange = refresh; pSel.onchange = showPrice; refresh();
+    sIn.onchange = refresh; eIn.onchange = refresh; mSel.onchange = showPrice; refresh();
     f.onsubmit = e => {
       e.preventDefault(); UI.clearErrors(f);
       try {
@@ -105,18 +108,20 @@ const StaffViews = {
           UI.require(f, ['first', 'last', 'nid', 'license', 'phone']);
           const nid = $('[data-field=nid] input', f).value.trim(), phone = $('[data-field=phone] input', f).value.trim();
           if (!validThaiId(nid)) throw new AppError(tt('เลขบัตรประชาชนไม่ถูกต้อง (ต้องเป็น 13 หลักและผ่าน checksum)', 'Invalid national ID (13 digits with valid checksum)'), 'nid');
+          if (!validLicence($('[data-field=license] input', f).value)) throw new AppError(tt('เลขใบขับขี่ต้องเป็นตัวเลข 13 หลัก', 'Driving licence number must be 13 digits'), 'license');
           if (!/^0\d{9}$/.test(phone)) throw new AppError(tt('เบอร์โทรต้องเป็นตัวเลข 10 หลักขึ้นต้นด้วย 0', 'Phone must be 10 digits starting with 0'), 'phone');
           cust = Store.db.users.find(u => u.role === 'customer' && u.nationalId === nid);
           if (!cust) {
-            cust = { id: Store.next('user', 'U'), username: null, password: null, role: 'customer', firstName: $('[data-field=first] input', f).value.trim(), lastName: $('[data-field=last] input', f).value.trim(), nationalId: nid, license: $('[data-field=license] input', f).value.trim(), phone, email: $('[data-field=email] input', f).value.trim(), status: 'active', createdAt: Date.now(), walkIn: true };
+            cust = { id: Store.next('user', 'U'), username: null, password: null, role: 'customer', firstName: $('[data-field=first] input', f).value.trim(), lastName: $('[data-field=last] input', f).value.trim(), nationalId: nid, license: normLicence($('[data-field=license] input', f).value), phone, email: $('[data-field=email] input', f).value.trim(), status: 'active', createdAt: Date.now(), walkIn: true };
             Store.db.users.push(cust);
           }
         } else {
           UI.require(f, ['cust']); cust = Store.user($('[data-field=cust] select', f).value);
         }
-        UI.require(f, ['start', 'end', 'plate']);
-        const b = Logic.createBooking({ customerId: cust.id, plate: pSel.value, start: new Date(sIn.value).getTime(), end: new Date(eIn.value).getTime(), createdBy: App.user.id });
-        UI.toast(tt(`สร้างรายการเช่า ${b.id} แล้ว — รับชำระเงิน`, `Rental ${b.id} created — take payment`), 'ok');
+        UI.require(f, ['start', 'end', 'make']);
+        const chosen = pick(); if (!chosen) throw new AppError(tt('ไม่มีรถยี่ห้อนี้ว่างในช่วงเวลานี้', 'No car of this make is free for this period'), 'make');
+        const b = Logic.createBooking({ customerId: cust.id, plate: chosen.car.plate, start: new Date(sIn.value).getTime(), end: new Date(eIn.value).getTime(), createdBy: App.user.id });
+        UI.toast(tt(`สร้างรายการเช่า ${b.id} แล้ว (${b.plate}) — รับชำระเงิน`, `Rental ${b.id} created (${b.plate}) — take payment`), 'ok');
         PaymentService.open({
           bookingId: b.id, amount: b.total + b.deposit, holdUntil: b.holdUntil, lines: [[tt('ค่าเช่า', 'Rent'), b.total], [tt('ค่ามัดจำ', 'Deposit'), b.deposit]],
           onSuccess: r => Logic.confirmPayment(b.id, r),
